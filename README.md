@@ -21,7 +21,7 @@ tambien me dijieron (pepe) que hay que emular como un sistema de pago, osea una 
 y eso seria lo inicial.
 # Para poder ejecutar el programa
 
-1- Asegurarse que la carpeta en la que estas es en backend cd "Proyecto Restaurante\Back-End\backend"
+1- Asegurarse que la carpeta en la que estas es en backend cd "Proyecto Restaurante\backend"
 
 2- una vez estado en esa carpeta ejecutar "python -m uvicorn main:app --reload" (con esto levantaras de forma local el back-end)
 

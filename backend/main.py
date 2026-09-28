@@ -12,5 +12,5 @@ app.include_router(alter.router)
 @app.get("/")
 def inicio():
     return {
-        "mensaje": "Backend Restaurante funcionando correctamente"
+        "mensaje": "Backend Restaurante funcionando correctamente, Recordar agregar (/docs) a la url al final"
     }

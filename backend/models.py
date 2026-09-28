@@ -26,4 +26,9 @@ class ReservaIn(BaseModel):
     Fecha: str
     Hora: str
     Lugar: str
-    Estado: str
+    Estado: int
+
+class TransaccionIn(BaseModel):
+    Monto: int
+    Id_Usuario: str
+    Id_reserva: int

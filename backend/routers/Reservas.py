@@ -184,3 +184,82 @@ def eliminar_reserva(Id_reserva: int):
     return {
         "mensaje": f"La reserva {Id_reserva} fue eliminada del sistema."
     }
+
+# --- Caso de Uso: Consulta de reservas ---
+@router.get("/Consulta")
+def consulta_reservas(
+    Id_Usuario: str,
+    Estado: int,
+    FechaDesde: str | None = None,
+    FechaHasta: str | None = None,
+    Platos: str | None = None,
+    Lugar: str | None = None
+):
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+
+        # Filtros obligatorios
+        sql = """
+            SELECT
+                Id_reserva,
+                Id_Usuario,
+                Platos,
+                Fecha,
+                Hora,
+                Lugar,
+                Estado
+            FROM Reserva
+            WHERE Id_Usuario = ?
+            AND Estado = ?
+        """
+
+        parametros = [Id_Usuario, Estado]
+
+        # Filtros opcionales
+        if FechaDesde is not None:
+            sql += " AND Fecha >= ?"
+            parametros.append(FechaDesde)
+
+        if FechaHasta is not None:
+            sql += " AND Fecha <= ?"
+            parametros.append(FechaHasta)
+
+        if Platos is not None:
+            sql += " AND Platos = ?"
+            parametros.append(Platos)
+
+        if Lugar is not None:
+            sql += " AND Lugar = ?"
+            parametros.append(Lugar)
+
+        sql += " ORDER BY Fecha ASC, Hora ASC"
+
+        cursor.execute(sql, parametros)
+
+        rows = cursor.fetchall()
+
+        return [
+            {
+                "Id_reserva": r[0],
+                "Id_Usuario": r[1],
+                "Platos": r[2],
+                "Fecha": r[3],
+                "Hora": r[4],
+                "Lugar": r[5],
+                "Estado": r[6]
+            }
+            for r in rows
+        ]
+
+    except Exception as e:
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al realizar la consulta: {str(e)}"
+        )
+
+    finally:
+        conn.close()

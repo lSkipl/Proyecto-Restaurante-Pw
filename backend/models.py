@@ -17,9 +17,9 @@ class MenuIn(BaseModel):
     Descripcion: str | None = None
     Precio: int
 
-class ReservasIn(BaseModel):
+class ReservaIn(BaseModel):
     Id_reserva: int
-    Id_trabajador: str
+    Id_Usuario: str
     Platos: str
     Fecha: str
     Hora: str

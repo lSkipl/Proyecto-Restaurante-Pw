@@ -1,6 +1,6 @@
 # Proyecto-Restaurante-Pw
 
-Faltan algunas cosas que modificar, agregar en el back-end, mas consultas. 
+Faltan algunas cosas que modificar, agregar en el back-end, mas consultas.  agregar una nueva entidad pago(Pk Id_pago, Monto, Fk id_usuario ) agregar un nuevo atributo en la entidad de reservas
 
 # ejemplo:
 que desde el back-end se puedan agregar usuarios, registrar nuevos trabajadores, poder eliminar reservas, crear nuevos menus entre otras cosas

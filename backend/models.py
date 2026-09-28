@@ -7,7 +7,10 @@ class UsuarioIn(BaseModel):
     Contacto: str
 
 class TrabajadorIn(BaseModel):
-    Id_trabajador: str
+    Nombre: str
+    Apellido: str
+    Contacto: str
+    Id_Trabajador: str
     Clave: str
     Correo: str
     Cargo: str
@@ -18,11 +21,9 @@ class MenuIn(BaseModel):
     Precio: int
 
 class ReservaIn(BaseModel):
-    Id_reserva: int
     Id_Usuario: str
     Platos: str
     Fecha: str
     Hora: str
     Lugar: str
-    Estado: int
- 
+    Estado: str

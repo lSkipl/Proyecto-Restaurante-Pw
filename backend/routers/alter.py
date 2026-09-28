@@ -1,7 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from database import get_connection
 
-router = APIRouter(prefix="/alter", tags=["Alteraciones"])
+router = APIRouter(prefix="/alter", tags=["Alter"])
 
 @router.put("/agregar-columna")
 def agregar_columna(tabla: str, nombre_columna: str, tipo_dato: str):
@@ -33,3 +33,26 @@ def cambiar_nombre_columna(tabla: str, nombre_columna: str, nombre_nuevo: str):
     finally:
         conn.close()
     return {"mensaje": mensaje}
+
+@router.delete("/Drop-table")
+def eliminar_tabla(tabla: str):
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        sql = f"DROP TABLE {tabla}"
+        cursor.execute(sql)
+        conn.commit()
+
+        return {
+            "mensaje": f"La tabla '{tabla}' fue eliminada correctamente."
+        }
+
+    except Exception as e:
+        conn.rollback()
+
+        raise HTTPException(status_code=500, detail=f"Error al eliminar la tabla: {str(e)}")
+
+    finally:
+        conn.close()

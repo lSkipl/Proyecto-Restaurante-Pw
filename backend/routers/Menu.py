@@ -6,15 +6,13 @@ router = APIRouter(prefix="/Menu", tags=["Menu"])
 
 
 # --- Mostrar menús con un precio específico ---
-@router.get("/precio/")
+@router.get("/Select")
 def obtener_menus_por_precio(Precio: int):
 
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute(
-        """ SELECT Plato, Descripcion, Precio FROM Menu WHERE Precio = ? """,(Precio,)
-    )
+    cursor.execute(""" SELECT Plato, Descripcion, Precio FROM Menu WHERE Precio = ? """,(Precio,))
 
     rows = cursor.fetchall()
     conn.close()
@@ -30,16 +28,14 @@ def obtener_menus_por_precio(Precio: int):
 
 
 # --- Agregar un nuevo menu ---
-@router.post("/")
+@router.post("/Insert")
 def agregar_menu(item: MenuIn):
 
     conn = get_connection()
     cursor = conn.cursor()
 
     # Verificar si el plato ya existe
-    cursor.execute(
-        """ SELECT Plato FROM Menu WHERE Plato = ? """, (item.Platos,)
-    )
+    cursor.execute(""" SELECT Plato FROM Menu WHERE Plato = ? """, (item.Platos,))
 
     existe = cursor.fetchone()
 
@@ -51,9 +47,7 @@ def agregar_menu(item: MenuIn):
         )
 
     try:
-        cursor.execute(
-            """ INSERT INTO Menu (Plato, Descripcion, Precio) VALUES (?, ?, ?) """, (item.Platos, item.Descripcion, item.Precio)
-        )
+        cursor.execute(""" INSERT INTO Menu (Plato, Descripcion, Precio) VALUES (?, ?, ?) """, (item.Platos, item.Descripcion, item.Precio))
 
         conn.commit()
 
@@ -64,10 +58,7 @@ def agregar_menu(item: MenuIn):
     except Exception as e:
         conn.rollback()
 
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error al agregar el menú: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Error al agregar el menú: {str(e)}")
 
     finally:
         conn.close()

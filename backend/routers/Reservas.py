@@ -5,28 +5,67 @@ from models import ReservaIn
 router = APIRouter(prefix="/Reservas", tags=["Reservas"])
 
 
+# --- Agregar reserva ---
+@router.post("/Insert")
+def agregar_reserva(item: ReservaIn):
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+
+        # Verificar que el usuario exista
+        cursor.execute(
+            """ SELECT Id_Usuario FROM Usuario  WHERE Id_Usuario = ? """, (item.Id_Usuario,) )
+
+        usuario = cursor.fetchone()
+
+        if not usuario:
+            raise HTTPException(status_code=404, detail=f"El usuario {item.Id_Usuario} no existe.")
+
+        # Verificar que el menú exista
+        cursor.execute( """ SELECT Platos FROM Menu WHERE Platos = ? """, (item.Platos,))
+
+        menu = cursor.fetchone()
+
+        if not menu:
+            raise HTTPException( status_code=404, detail=f"El menú '{item.Platos}' no existe.")
+
+        # Insertar la reserva
+        cursor.execute(""" INSERT INTO Reserva (Id_Usuario,Platos,Fecha,Hora,Lugar,Estado)VALUES (?, ?, ?, ?, ?, ?)""",
+            (item.Id_Usuario, item.Platos, item.Fecha, item.Hora, item.Lugar, item.Estado))
+
+        conn.commit()
+
+        # Obtener el ID generado automáticamente
+        id_reserva = cursor.lastrowid
+
+        return {
+            "mensaje": "Reserva agregada correctamente.",
+            "Id_reserva": id_reserva
+        }
+
+    except HTTPException:
+        conn.rollback()
+        raise
+
+    except Exception as e:
+        conn.rollback()
+
+        raise HTTPException( status_code=500, detail=f"Error al agregar la reserva: {str(e)}")
+
+    finally:
+        conn.close()
+
+
 # --- Consultar reservas por Id_Usuario ---
-@router.get("/")
+@router.get("/Select")
 def obtener_reservas_rut(Id_Usuario: str):
 
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute(
-        """
-        SELECT
-            Id_reserva,
-            Id_Usuario,
-            Platos,
-            Fecha,
-            Hora,
-            Lugar,
-            Estado
-        FROM Reserva
-        WHERE Id_Usuario = ?
-        """,
-        (Id_Usuario,)
-    )
+    cursor.execute( """ SELECT Id_reserva, Id_Usuario, Platos, Fecha, Hora, Lugar, Estado FROM Reserva WHERE Id_Usuario = ? """, (Id_Usuario,))
 
     rows = cursor.fetchall()
 
@@ -44,34 +83,104 @@ def obtener_reservas_rut(Id_Usuario: str):
         }
         for r in rows
     ]
-@router.put("/{Id_reserva}")
-def Modificar_datos_reserva(Id_reserva: str, item: ReservaIn):
+
+
+# --- Consultar reservas por menú y mostrar precio ---
+@router.get("/Join")
+def obtener_reservas_por_tipo_de_menu(Menu: str):
+
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM Reserva WHERE Id_reserva = ?", (Id_reserva,))
+
+    cursor.execute(""" SELECT Reserva.Id_reserva, Reserva.Id_Usuario, Reserva.Platos, Menu.Precio, Reserva.Fecha, Reserva.Hora,
+            Reserva.Lugar, Reserva.Estado FROM Reserva INNER JOIN Menu ON Reserva.Platos = Menu.Platos WHERE Reserva.Platos = ? """, (Menu,))
+
+    rows = cursor.fetchall()
+
+    conn.close()
+
+    if not rows:
+        raise HTTPException(status_code=404, detail=f"Las reservas con {Menu} no fueron encontradas.")
+
+    return [
+        {
+            "Id_reserva": r[0],
+            "Id_usuario": r[1],
+            "Platos": r[2],
+            "Precio": r[3],
+            "Fecha": r[4],
+            "Hora": r[5],
+            "Lugar": r[6],
+            "Estado": r[7]
+        }
+        for r in rows
+    ]
+
+
+# --- Modificar datos de una reserva ---
+@router.put("/Update")
+def modificar_datos_reserva(Id_reserva: int, item: ReservaIn):
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(""" SELECT * FROM Reserva WHERE Id_reserva = ? """, (Id_reserva,))
+
     existente = cursor.fetchone()
 
     if not existente:
         conn.close()
-        raise HTTPException(status_code=404, detail=f"La reserva Id: {Id_reserva} no fue encontrada.")
 
-    cursor.execute("""
-        UPDATE Reserva SET Id_reserva=?, Id_Usuario=?, Platos=?, Fecha=?,
-        Hora=?, Lugar=?, Estado=? WHERE Id_reserva=?
-    """, (
-        item.Id_reserva, item.Id_Usuario, item.Platos, item.Fecha,
-        item.Hora, item.Lugar, item.Estado, Id_reserva
-    ))
-    conn.commit()
-    conn.close()
-    return {"mensaje": f"Los datos de la reserva {Id_reserva} fueron actualizado correctamente."}
+        raise HTTPException(
+            status_code=404,
+            detail=f"La reserva Id: {Id_reserva} no fue encontrada."
+        )
+
+    try:
+
+        cursor.execute(
+            """ UPDATE Reserva SET Id_Usuario = ?, Platos = ?, Fecha = ?, Hora = ?, Lugar = ?, Estado = ? WHERE Id_reserva = ? """,
+            (item.Id_Usuario,item.Platos, item.Fecha, item.Hora, item.Lugar, item.Estado, Id_reserva)
+        )
+
+        conn.commit()
+
+        return {
+            "mensaje": f"Los datos de la reserva {Id_reserva} fueron actualizados correctamente."
+        }
+
+    except Exception as e:
+        conn.rollback()
+
+        raise HTTPException(status_code=500, detail=f"Error al modificar la reserva: {str(e)}")
+
+    finally:
+        conn.close()
 
 
-@router.delete("/{Id_reserva}")
+# --- Eliminar reserva ---
+@router.delete("/Delete")
 def eliminar_reserva(Id_reserva: int):
+
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM Reserva WHERE Id_reserva = ?", (Id_reserva,))
+
+    cursor.execute(
+        """
+        DELETE FROM Reserva
+        WHERE Id_reserva = ?
+        """,
+        (Id_reserva,)
+    )
+
+    if cursor.rowcount == 0:
+        conn.close()
+
+        raise HTTPException( status_code=404, detail=f"La reserva {Id_reserva} no fue encontrada.")
+
     conn.commit()
     conn.close()
-    return {"mensaje": f"La reserva {Id_reserva} fue eliminada del sistema."}
+
+    return {
+        "mensaje": f"La reserva {Id_reserva} fue eliminada del sistema."
+    }

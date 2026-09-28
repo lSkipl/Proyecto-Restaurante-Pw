@@ -1,8 +1,8 @@
 # Proyecto-Restaurante-Pw
 
 # Que Falta?:
-1- Falta Hacer Nuevos diagramas, Modelo Relacional y Modela Entidad Relacion (Yo voy a hacer el diccionario de datos)
-Adjunto imagen de la BD.
+1- Falta Hacer Nuevos diagramas, Modelo Relacional y Modela Entidad Relacion (Yo voy a hacer el diccionario de datos) Recordar (que son las FK y Pk)
+Adjunto imagen de la BD. 
 <img width="370" height="567" alt="image" src="https://github.com/user-attachments/assets/fbf54e23-8ee5-47cf-a890-7c89de1e9948" />
 
 2- Cambiar un poco el Diagrama de Casos de Uso

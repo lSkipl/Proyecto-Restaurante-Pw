@@ -20,6 +20,8 @@ Adjunto imagen de la BD.
 
 7- trata de usar el back-end Hacer pruebas, te lo encargo, si no sabes que hace revisa los comentarios del código y ve el CODIGO, me encargue de dejarlo comentado
 
+8- Comparteme el avance del informe y el ppt porfavor
+
 De momento es lo que se me ocurre de lo que hay que hacer
 
 

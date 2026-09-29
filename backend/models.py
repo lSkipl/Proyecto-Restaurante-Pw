@@ -21,6 +21,7 @@ class MenuIn(BaseModel):
     Precio: int
 
 class ReservaIn(BaseModel):
+    Id_Transaccion: int | None = None
     Id_Usuario: str
     Platos: str
     Fecha: str
@@ -32,3 +33,9 @@ class TransaccionIn(BaseModel):
     Monto: int
     Id_Usuario: str
     Id_reserva: int
+
+class HorarioIn(BaseModel):
+    Id_Trabajador: str
+    Dia: str
+    Hora_Inicio: str
+    Hora_Termino: str

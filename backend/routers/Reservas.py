@@ -65,7 +65,7 @@ def obtener_reservas_rut(Id_Usuario: str):
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute( """ SELECT Id_reserva, Id_Usuario, Platos, Fecha, Hora, Lugar, Estado FROM Reserva WHERE Id_Usuario = ? """, (Id_Usuario,))
+    cursor.execute( """ SELECT Id_Transaccion, Id_reserva, Id_Usuario, Platos, Fecha, Hora, Lugar, Estado FROM Reserva WHERE Id_Usuario = ? """, (Id_Usuario,))
 
     rows = cursor.fetchall()
 
@@ -73,13 +73,14 @@ def obtener_reservas_rut(Id_Usuario: str):
 
     return [
         {
-            "Id_reserva": r[0],
-            "Id_Usuario": r[1],
-            "Platos": r[2],
-            "Fecha": r[3],
-            "Hora": r[4],
-            "Lugar": r[5],
-            "Estado": r[6]
+            "Id_Transaccion": r[0],
+            "Id_reserva": r[1],
+            "Id_Usuario": r[2],
+            "Platos": r[3],
+            "Fecha": r[4],
+            "Hora": r[5],
+            "Lugar": r[6],
+            "Estado": r[7]
         }
         for r in rows
     ]
@@ -92,7 +93,7 @@ def obtener_reservas_por_tipo_de_menu(Menu: str):
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute(""" SELECT Reserva.Id_reserva, Reserva.Id_Usuario, Reserva.Platos, Menu.Precio, Reserva.Fecha, Reserva.Hora,
+    cursor.execute(""" SELECT Reserva.Id_Transaccion, Reserva.Id_reserva, Reserva.Id_Usuario, Reserva.Platos, Menu.Precio, Reserva.Fecha, Reserva.Hora,
             Reserva.Lugar, Reserva.Estado FROM Reserva INNER JOIN Menu ON Reserva.Platos = Menu.Platos WHERE Reserva.Platos = ? """, (Menu,))
 
     rows = cursor.fetchall()
@@ -104,14 +105,15 @@ def obtener_reservas_por_tipo_de_menu(Menu: str):
 
     return [
         {
-            "Id_reserva": r[0],
-            "Id_usuario": r[1],
-            "Platos": r[2],
-            "Precio": r[3],
-            "Fecha": r[4],
-            "Hora": r[5],
-            "Lugar": r[6],
-            "Estado": r[7]
+            "Id_Transaccion": r[0],
+            "Id_reserva": r[1],
+            "Id_usuario": r[2],
+            "Platos": r[3],
+            "Precio": r[4],
+            "Fecha": r[5],
+            "Hora": r[6],
+            "Lugar": r[7],
+            "Estado": r[8]
         }
         for r in rows
     ]
@@ -131,10 +133,7 @@ def modificar_datos_reserva(Id_reserva: int, item: ReservaIn):
     if not existente:
         conn.close()
 
-        raise HTTPException(
-            status_code=404,
-            detail=f"La reserva Id: {Id_reserva} no fue encontrada."
-        )
+        raise HTTPException(status_code=404, detail=f"La reserva Id: {Id_reserva} no fue encontrada.")
 
     try:
 
@@ -165,25 +164,45 @@ def eliminar_reserva(Id_reserva: int):
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute(
-        """
-        DELETE FROM Reserva
-        WHERE Id_reserva = ?
-        """,
-        (Id_reserva,)
-    )
+    try:
 
-    if cursor.rowcount == 0:
+        # Verificar que la reserva exista
+        cursor.execute(""" SELECT Id_reserva FROM Reserva WHERE Id_reserva = ? """, (Id_reserva,))
+
+        reserva = cursor.fetchone()
+
+        if not reserva:
+            raise HTTPException(status_code=404, detail=f"La reserva {Id_reserva} no fue encontrada." )
+
+        # Verificar si la reserva tiene una transacción asociada
+        cursor.execute(
+            """ SELECT Id_Transaccion FROM Transaccion WHERE Id_reserva = ?  """, (Id_reserva,))
+
+        transaccion = cursor.fetchone()
+
+        if transaccion:
+            raise HTTPException(status_code=400, detail=f"No se puede eliminar la reserva {Id_reserva} porque tiene una transacción asociada.")
+
+        # Eliminar la reserva
+        cursor.execute( """ DELETE FROM Reserva WHERE Id_reserva = ? """, (Id_reserva,))
+
+        conn.commit()
+
+        return {
+            "mensaje": f"La reserva {Id_reserva} fue eliminada del sistema."
+        }
+
+    except HTTPException:
+        conn.rollback()
+        raise
+
+    except Exception as e:
+        conn.rollback()
+
+        raise HTTPException(status_code=500, detail=f"Error al eliminar la reserva: {str(e)}")
+
+    finally:
         conn.close()
-
-        raise HTTPException( status_code=404, detail=f"La reserva {Id_reserva} no fue encontrada.")
-
-    conn.commit()
-    conn.close()
-
-    return {
-        "mensaje": f"La reserva {Id_reserva} fue eliminada del sistema."
-    }
 
 # --- Caso de Uso: Consulta de reservas ---
 @router.get("/Consulta")
@@ -202,19 +221,7 @@ def consulta_reservas(
     try:
 
         # Filtros obligatorios
-        sql = """
-            SELECT
-                Id_reserva,
-                Id_Usuario,
-                Platos,
-                Fecha,
-                Hora,
-                Lugar,
-                Estado
-            FROM Reserva
-            WHERE Id_Usuario = ?
-            AND Estado = ?
-        """
+        sql = """ SELECT Id_Transaccion, Id_reserva, Id_Usuario, Platos, Fecha, Hora, Lugar, Estado FROM Reserva WHERE Id_Usuario = ? AND Estado = ? """
 
         parametros = [Id_Usuario, Estado]
 
@@ -243,23 +250,21 @@ def consulta_reservas(
 
         return [
             {
-                "Id_reserva": r[0],
-                "Id_Usuario": r[1],
-                "Platos": r[2],
-                "Fecha": r[3],
-                "Hora": r[4],
-                "Lugar": r[5],
-                "Estado": r[6]
+                "Id_Transaccion": r[0],
+                "Id_reserva": r[1],
+                "Id_Usuario": r[2],
+                "Platos": r[3],
+                "Fecha": r[4],
+                "Hora": r[5],
+                "Lugar": r[6],
+                "Estado": r[7]
             }
             for r in rows
         ]
 
     except Exception as e:
 
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error al realizar la consulta: {str(e)}"
-        )
+        raise HTTPException( status_code=500, detail=f"Error al realizar la consulta: {str(e)}")
 
     finally:
         conn.close()

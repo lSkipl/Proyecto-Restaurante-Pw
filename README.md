@@ -26,18 +26,18 @@ https://zombie-impending-capably.ngrok-free.dev/docs
 
 (Pruebas)
 
-Rut Usuario
-22222222-2
+Rut Usuario:
+22222222-2 ,
 22222222-2
 
-Rut trabajador
-11111111-1
+Rut trabajador:
+11111111-1 ,
 33333333-3
 
-Menus
-Pizza Napolitana
-Lasaña
+Menus:
+Pizza Napolitana ,
+Lasaña  ,
 
-Lugar
-Terraza
+Lugar:
+Terraza ,
 Salón Principal

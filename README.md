@@ -37,3 +37,6 @@ Rut trabajador
 Menus
 Pizza Napolitana
 Lasaña
+
+Lugar
+Terraza

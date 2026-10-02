@@ -28,8 +28,8 @@ https://zombie-impending-capably.ngrok-free.dev/docs
 
 Rut Usuario:
 22222222-2 ,
-22222222-2
-
+66666666-6 ,
+77777777-7
 Rut trabajador:
 11111111-1 ,
 33333333-3

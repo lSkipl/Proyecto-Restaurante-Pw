@@ -22,3 +22,18 @@ y eso seria lo inicial.
 
 5- muy importante al url que nos dio debemos modificarlo un poco https://xxxxx.ngrok-free.app/docs y listo
 https://zombie-impending-capably.ngrok-free.dev/docs
+
+
+(Pruebas)
+
+Rut Usuario
+22222222-2
+22222222-2
+
+Rut trabajador
+11111111-1
+33333333-3
+
+Menus
+Pizza Napolitana
+Lasaña

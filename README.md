@@ -40,3 +40,4 @@ Lasaña
 
 Lugar
 Terraza
+Salón Principal

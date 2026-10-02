@@ -21,3 +21,4 @@ y eso seria lo inicial.
 4- en la pestaña donde ejecutas el ngrok veras algo asi "Forwarding    https://xxxxx.ngrok-free.app -> http://localhost:8000" basicamente ocupamos la direccion https://xxxxx.ngrok-free.app
 
 5- muy importante al url que nos dio debemos modificarlo un poco https://xxxxx.ngrok-free.app/docs y listo
+https://zombie-impending-capably.ngrok-free.dev/docs

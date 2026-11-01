@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Horarios | Álamos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="Styles/Administrador.css" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  <div class="admin-layout">
+    <!-- BARRA LATERAL RESTAURADA -->
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-header" style="padding: 1.5rem 1rem;">
+        <h2 style="margin: 0; font-size: 1.4rem; font-weight: 700; color: #fff;">Álamos</h2>
+        <p style="margin: 0.25rem 0 0; font-size: 0.85rem; color: #a3b899;">Gestión de Turnos</p>
+      </div>
+
+      <nav class="sidebar-nav" style="display: flex; flex-direction: column; gap: 0.5rem; padding: 0 1rem; flex-grow: 1;">
+        <a href="reservas.html" id="linkReservas" class="nav-item" style="display: block; padding: 0.75rem 1rem; border-radius: 8px; text-decoration: none; color: #fff; font-weight: 500;">
+          Reservas
+        </a>
+        <!-- ENLACE ACTIVO CON FONDO CLARO Y LETRA OSCURA -->
+        <a href="horarios.html" id="linkHorarios" class="nav-item active" style="display: block; padding: 0.75rem 1rem; border-radius: 8px; text-decoration: none; background-color: #f4f6f0; color: #1a2e1d !important; font-weight: 700;">
+          Horarios y Turnos
+        </a>
+        <a href="index.html" class="nav-item" style="display: block; padding: 0.75rem 1rem; border-radius: 8px; text-decoration: none; color: #fff; font-weight: 500;">
+          Ver Sitio Web
+        </a>
+      </nav>
+
+      <div class="sidebar-footer" style="padding: 1.5rem 1rem;">
+        <a href="javascript:void(0)" id="btnCerrarSesion" class="btn-logout" style="display: block; padding: 0.75rem 1rem; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #ffb4ab; text-decoration: none; font-size: 0.9rem; font-weight: 500;">
+          Cerrar sesión
+        </a>
+      </div>
+    </aside>
+
+    <main class="admin-main">
+      <header class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+        <div>
+          <p class="eyebrow">Planificación</p>
+          <h1 class="page-title">Horarios</h1>
+          <p class="page-subtitle">Organiza un turno diario por cada trabajador.</p>
+        </div>
+        <button type="button" id="save-btn" class="btn btn-primary">Guardar cambios</button>
+      </header>
+
+      <section class="card toolbar" style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div class="field" style="display: flex; align-items: center; gap: 0.75rem;">
+          <label for="worker" class="label" style="font-weight: 600;">Trabajador</label>
+          <select id="worker" class="select" style="padding: 0.5rem 1rem; border-radius: 6px; border: 1px solid #ccc;">
+            <option value="">Cargando trabajadores...</option>
+          </select>
+        </div>
+        <div class="week-nav" style="display: flex; align-items: center; gap: 1rem;">
+          <button type="button" id="prev-week" class="btn btn-outline">Anterior</button>
+          <span id="week-label" class="week-label" style="font-weight: 600;">Semana Actual</span>
+          <button type="button" id="next-week" class="btn btn-outline">Siguiente</button>
+        </div>
+      </section>
+
+      <section id="days" class="days-grid" aria-label="Turnos de la semana" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem;"></section>
+
+      <section class="notice-row" style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
+        <div class="notice" style="display: flex; align-items: center; gap: 0.75rem;">
+          <i data-lucide="triangle-alert" class="icon-md" aria-hidden="true"></i>
+          <div>
+            <p class="notice-title" style="font-weight: 600; margin: 0;">Un turno por día</p>
+            <p class="text-xs muted" style="margin: 0; color: #666;">Si intentas crear otro horario para el mismo día, deberás modificar el turno existente.</p>
+          </div>
+        </div>
+        <button type="button" id="validate-btn" class="btn btn-outline">Mostrar validación de horario</button>
+      </section>
+
+      <div id="validation-result" class="validation-result" aria-live="polite" style="margin-top: 1rem;"></div>
+    </main>
+  </div>
+
+  <div id="toast-container" style="position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9999;"></div>
+
+  <!-- Vinculación al archivo JS -->
+  <script src="horarios.js"></script>
+  <script>
+    if (window.lucide) {
+      lucide.createIcons();
+    }
+  </script>
+</body>
+</html>

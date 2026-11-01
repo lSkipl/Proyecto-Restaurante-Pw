@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Solicita tu mesa — Álamos | Cocina de estación</title>
+  <meta name="description" content="Solicita tu reserva en Álamos. Completa tus datos y revisaremos la disponibilidad." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="Styles/styles.css" />
+  <link rel="stylesheet" href="Styles/reservar.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="index.html" class="brand" aria-label="Álamos, inicio">
+        <span class="brand-mark">A</span>
+        <span class="brand-text">
+          <span class="brand-name">Álamos</span>
+          <span class="brand-tagline">Cocina de estación</span>
+        </span>
+      </a>
+
+      <nav class="main-nav" aria-label="Principal">
+        <ul>
+          <li><a href="index.html">Inicio</a></li>
+          <li><a href="index.html#menu">Menú</a></li>
+          <li><a href="reservar.html" aria-current="page">Reservar</a></li>
+          <li><a href="#consultar">Consultar reserva</a></li>
+        </ul>
+      </nav>
+
+      <a href="login.html" class="btn btn-outline btn-sm">
+        <span class="label-long">Acceso del personal</span>
+        <span class="label-short">Personal</span>
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="8" r="5" />
+          <path d="M20 21a8 8 0 0 0-16 0" />
+        </svg>
+      </a>
+    </div>
+  </header>
+
+  <main class="container reserve">
+    <section class="reserve-intro">
+      <p class="eyebrow">Reserva en Álamos</p>
+      <h1 class="reserve-title">Solicita tu mesa.</h1>
+      <p class="reserve-lead">
+        Completa tus datos y revisaremos la disponibilidad. Tu solicitud quedará pendiente de aprobación.
+      </p>
+    </section>
+
+    <div class="reserve-layout">
+      <form class="card reserve-form" action="#" method="post">
+        <fieldset class="form-step">
+          <legend class="step-header">
+            <span class="step-number">1</span>
+            <span>
+              <span class="step-title">Datos de contacto</span>
+              <span class="step-desc">Usaremos estos datos para identificar tu reserva.</span>
+            </span>
+          </legend>
+
+          <div class="form-grid">
+            <div class="field">
+              <label for="nombre">Nombre</label>
+              <input id="nombre" name="nombre" type="text" placeholder="Ej. Martina" autocomplete="given-name" required />
+            </div>
+            <div class="field">
+              <label for="apellido">Apellido</label>
+              <input id="apellido" name="apellido" type="text" placeholder="Ej. González" autocomplete="family-name" required />
+            </div>
+            <div class="field">
+              <label for="identificador">Identificador del cliente</label>
+              <input id="identificador" name="identificador" type="text" placeholder="12.345.678-9" required />
+            </div>
+            <div class="field">
+              <label for="telefono">Teléfono</label>
+              <input id="telefono" name="telefono" type="tel" placeholder="+56 9 1234 5678" autocomplete="tel" required />
+            </div>
+          </div>
+        </fieldset>
+
+        <hr class="form-divider" />
+
+        <fieldset class="form-step">
+          <legend class="step-header">
+            <span class="step-number">2</span>
+            <span>
+              <span class="step-title">Fecha y preferencias</span>
+              <span class="step-desc">Selecciona cuándo y dónde quieres visitarnos.</span>
+            </span>
+          </legend>
+
+          <div class="form-grid">
+            <div class="field">
+              <label for="fecha">Fecha</label>
+              <input id="fecha" name="fecha" type="date" required />
+            </div>
+            <div class="field">
+              <label for="hora">Hora</label>
+              <select id="hora" name="hora" required>
+                <option value="" disabled selected>Seleccionar hora</option>
+                <option>12:30</option>
+                <option>13:30</option>
+                <option>14:30</option>
+                <option>19:30</option>
+                <option>20:30</option>
+                <option>21:30</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="plato">Plato seleccionado</label>
+              <select id="plato" name="plato">
+                <option selected>Risotto de champiñones</option>
+                <option>Salmón a la plancha</option>
+                <option>Pastel de choclo</option>
+                <option>Ensalada de estación</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="lugar">Mesa o lugar disponible</label>
+              <select id="lugar" name="lugar" required>
+                <option value="" disabled selected>Seleccionar lugar</option>
+                <option>Salón principal</option>
+                <option>Terraza</option>
+                <option>Junto a la ventana</option>
+                <option>Barra</option>
+              </select>
+            </div>
+          </div>
+        </fieldset>
+
+        <div class="form-actions">
+          <a href="index.html" class="btn btn-outline btn-sm">Cancelar</a>
+          <button type="submit" class="btn btn-primary btn-sm">
+            Solicitar reserva
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 12h14" />
+              <path d="m12 5 7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+      </form>
+
+      <aside class="card summary" aria-labelledby="summary-title">
+        <p class="summary-kicker">Resumen</p>
+        <img
+          class="summary-image"
+          src="images/plato.png"
+          alt="Plato de risotto de champiñones con salmón y flores comestibles"
+          width="1024"
+          height="576"
+        />
+        <h2 id="summary-title" class="summary-title">Risotto de champiñones</h2>
+        <p class="summary-desc">Arroz arbóreo, mix de hongos, parmesano y aceite de hierbas.</p>
+
+        <dl class="summary-price">
+          <dt>Precio por plato</dt>
+          <dd>$12.500</dd>
+        </dl>
+
+        <div class="notice" role="note">
+          <svg class="icon notice-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" />
+            <path d="M12 9v4" />
+            <path d="M12 17h.01" />
+          </svg>
+          <div>
+            <p class="notice-title">Solicitud sujeta a aprobación</p>
+            <p class="notice-text">Te avisaremos cuando el equipo confirme tu mesa.</p>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+</body>
+</html>

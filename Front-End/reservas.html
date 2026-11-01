@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Reservas | Álamos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="Styles/Administrador.css" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  <div class="admin-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+
+    <main class="admin-main">
+      <header>
+        <p class="eyebrow">Gestión diaria</p>
+        <h1 class="page-title">Reservas</h1>
+        <p class="page-subtitle">Revisa y gestiona las solicitudes recibidas.</p>
+      </header>
+
+      <section class="stats-grid" aria-label="Resumen">
+        <article class="card stat">
+          <p class="stat-label">Reservas de hoy</p>
+          <p class="stat-value">12</p>
+          <p id="stat-approved" class="stat-hint"></p>
+        </article>
+        <article class="card stat">
+          <p class="stat-label">Pendientes</p>
+          <p id="stat-pending" class="stat-value"></p>
+          <p class="stat-hint">Requieren revisión</p>
+        </article>
+        <article class="card stat">
+          <p class="stat-label">Ocupación estimada</p>
+          <p class="stat-value">78%</p>
+          <p class="stat-hint">Servicio de cena</p>
+        </article>
+      </section>
+
+      <section class="card table-card">
+        <div class="table-header">
+          <div>
+            <h2 class="table-title">Solicitudes recientes</h2>
+            <p id="results-count" class="text-xs muted"></p>
+          </div>
+          <div class="filters">
+            <div class="field">
+              <label for="filter-date" class="label">Fecha</label>
+              <input id="filter-date" type="date" class="input input-sm" />
+            </div>
+            <div class="field">
+              <label for="filter-status" class="label">Estado</label>
+              <select id="filter-status" class="select select-sm">
+                <option value="todos">Todos</option>
+                <option value="pendiente">Pendiente</option>
+                <option value="aprobada">Aprobada</option>
+                <option value="rechazada">Rechazada</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th scope="col">Código</th>
+                <th scope="col">Cliente</th>
+                <th scope="col">Fecha</th>
+                <th scope="col">Hora</th>
+                <th scope="col">Mesa</th>
+                <th scope="col">Estado</th>
+                <th scope="col">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast-container" style="position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9999;"></div>
+
+  <script src="reservas.js"></script>
+</body>
+</html>

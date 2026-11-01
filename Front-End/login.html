@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Acceso del personal | Álamos</title>
+  <meta name="description" content="Acceso interno para el equipo de Álamos." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="Styles/login.css" />
+</head>
+<body>
+  <main class="login">
+    <!-- Panel izquierdo -->
+    <section class="login-aside" aria-label="Álamos, acceso interno">
+      <a href="index.html" class="brand">
+        <span class="brand-mark" aria-hidden="true">A</span>
+        <span class="brand-text">
+          <span class="brand-name">Álamos</span>
+          <span class="brand-tag">Cocina de estación</span>
+        </span>
+      </a>
+
+      <div class="aside-content">
+        <p class="eyebrow eyebrow-light">Acceso interno</p>
+        <h2 class="aside-title">El mismo cuidado,<br />detrás de cada servicio.</h2>
+        <p class="aside-text">Gestión sencilla para el equipo de Álamos.</p>
+      </div>
+
+      <p class="aside-footer">Solo para personal autorizado</p>
+    </section>
+
+    <!-- Panel derecho -->
+    <section class="login-main">
+      <div class="login-box">
+        <a href="index.html" class="back-link">
+          Volver al sitio
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M19 12H5" /><path d="m12 19-7-7 7-7" />
+          </svg>
+        </a>
+
+        <p class="eyebrow">Bienvenido</p>
+        <h1 class="login-title">Ingresa a tu cuenta.</h1>
+        <p class="login-subtitle">Usa tus credenciales de administrador o trabajador.</p>
+
+        <form class="login-form" id="login-form" novalidate>
+          <div class="field">
+            <label for="email">Correo electrónico</label>
+            <input type="email" id="email" name="email" placeholder="nombre@alamos.cl" autocomplete="email" required />
+          </div>
+
+          <div class="field">
+            <label for="password">Contraseña</label>
+            <div class="password-wrap">
+              <input type="password" id="password" name="password" placeholder="••••••••" autocomplete="current-password" required />
+              <button type="button" class="toggle-password" id="toggle-password" aria-label="Mostrar contraseña" aria-pressed="false">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <p class="form-message" id="form-message" role="alert" aria-live="polite"></p>
+
+          <button type="submit" class="btn btn-primary btn-block">Ingresar</button>
+        </form>
+
+        <div class="demo-box">
+          <p class="demo-title">Credenciales de demostración</p>
+          <p class="demo-text">Contraseña: alamos123</p>
+          <div class="demo-actions">
+            <button type="button" class="demo-btn" data-email="admin@alamos.cl">Usar administrador</button>
+            <button type="button" class="demo-btn" data-email="trabajador@alamos.cl">Usar trabajador</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Enlace al archivo JS externo -->
+  <script src="login.js"></script>
+</body>
+</html>

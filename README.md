@@ -21,24 +21,5 @@ y eso seria lo inicial.
 4- en la pestaña donde ejecutas el ngrok veras algo asi "Forwarding    https://xxxxx.ngrok-free.app -> http://localhost:8000" basicamente ocupamos la direccion https://xxxxx.ngrok-free.app
 
 5- muy importante al url que nos dio debemos modificarlo un poco https://xxxxx.ngrok-free.app/docs y listo
-https://zombie-impending-capably.ngrok-free.dev/docs
+https://zombie-impending-capably.ngrok-free.dev/docs /// Va a cambiar
 
-
-(Pruebas)
-
-Rut Usuario:
-22222222-2 ,
-66666666-6 ,
-77777777-7
-
-Rut trabajador:
-11111111-1 ,
-33333333-3
-
-Menus:
-Pizza Napolitana ,
-Lasaña  ,
-
-Lugar:
-Terraza ,
-Salón Principal

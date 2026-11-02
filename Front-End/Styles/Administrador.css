@@ -798,6 +798,32 @@ img {
 /* =========================================================
    Reservas
    ========================================================= */
+.badge-status {
+  display: inline-block;
+  padding: 0.35rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* Verde: Aprobada */
+.status-aprobada {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+/* Rojo: Rechazada */
+.status-rechazada {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+/* Amarillo / Naranja: Pendiente */
+.status-pendiente {
+  background-color: #fef3c7;
+  color: #92400e;
+}
 
 .stats-grid {
   display: grid;

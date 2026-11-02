@@ -3,6 +3,7 @@ from database import get_db
 from pydantic import BaseModel
 from bson import ObjectId
 from bson.errors import InvalidId
+from typing import Optional
 
 router = APIRouter(prefix="/Reservas", tags=["Reservas"])
 
@@ -11,7 +12,77 @@ class EstadoUpdate(BaseModel):
     Estado: str  # 'aprobada', 'rechazada' o 'pendiente'
 
 
-# --- 1. Listar todas las reservas para la interfaz web ---
+class CrearReservaIn(BaseModel):
+    nombre: str
+    apellido: str
+    identificador: str
+    telefono: str
+    fecha: str
+    hora: str
+    plato: Optional[str] = "Sin plato"
+    lugar: str
+
+
+# --- 1. Crear una nueva reserva con validación de disponibilidad ---
+@router.post("/Crear")
+def crear_reserva(datos: CrearReservaIn):
+    db = get_db()
+    try:
+        # Validación de choque de horarios:
+        # Verifica si ya hay una reserva para el mismo lugar, fecha y hora (omitiendo rechazadas)
+        reserva_ocupada = db.reservas.find_one({
+            "fecha": datos.fecha,
+            "hora": datos.hora,
+            "lugar": datos.lugar,
+            "estado": {"$nin": ["rechazada", "0", 0, "cancelada"]}
+        })
+
+        if reserva_ocupada:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"El lugar '{datos.lugar}' ya se encuentra reservado para el {datos.fecha} a las {datos.hora}."
+            )
+
+        # Registrar o actualizar los datos del cliente en la colección 'usuarios'
+        db.usuarios.update_one(
+            {"$or": [{"identificador": datos.identificador}, {"id_usuario": datos.identificador}]},
+            {"$set": {
+                "nombre": datos.nombre,
+                "apellido": datos.apellido,
+                "identificador": datos.identificador,
+                "id_usuario": datos.identificador,
+                "contacto": datos.telefono
+            }},
+            upsert=True
+        )
+
+        # Insertar la reserva en la colección 'reservas'
+        nueva_reserva = {
+            "id_usuario": datos.identificador,
+            "fecha": datos.fecha,
+            "hora": datos.hora,
+            "lugar": datos.lugar,
+            "platos": datos.plato,
+            "estado": "pendiente"
+        }
+
+        resultado = db.reservas.insert_one(nueva_reserva)
+
+        return {
+            "mensaje": "Reserva solicitada con éxito.",
+            "codigo": str(resultado.inserted_id)
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al procesar la reserva en MongoDB: {str(e)}"
+        )
+
+
+# --- 2. Listar todas las reservas para la interfaz web ---
 @router.get("/Listar")
 def listar_reservas():
     db = get_db()
@@ -85,7 +156,7 @@ def listar_reservas():
         )
 
 
-# --- 2. Actualizar el estado de la reserva (Aprobada / Rechazada) ---
+# --- 3. Actualizar el estado de la reserva (Aprobada / Rechazada) ---
 @router.put("/Estado/{id_reserva}")
 def actualizar_estado(id_reserva: str, datos: EstadoUpdate):
     db = get_db()
@@ -116,7 +187,7 @@ def actualizar_estado(id_reserva: str, datos: EstadoUpdate):
         )
 
 
-# --- 3. Eliminar reserva ---
+# --- 4. Eliminar reserva ---
 @router.delete("/Delete/{id_reserva}")
 def eliminar_reserva(id_reserva: str):
     db = get_db()

@@ -9,10 +9,58 @@
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="Styles/Administrador.css" />
   <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    /* Badges de estado: Verde para aprobadas, Rojo para rechazadas, Naranja para pendientes */
+    .badge-status {
+      display: inline-block;
+      padding: 0.3rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-align: center;
+    }
+    .status-aprobada {
+      background-color: #d1fae5;
+      color: #065f46;
+    }
+    .status-rechazada {
+      background-color: #fee2e2;
+      color: #991b1b;
+    }
+    .status-pendiente {
+      background-color: #fef3c7;
+      color: #92400e;
+    }
+  </style>
 </head>
 <body>
   <div class="admin-layout">
-    <aside id="sidebar" class="sidebar"></aside>
+    <!-- BARRA LATERAL RESTAURADA -->
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-header" style="padding: 1.5rem 1rem;">
+        <h2 style="margin: 0; font-size: 1.4rem; font-weight: 700; color: #fff;">Álamos</h2>
+        <p style="margin: 0.25rem 0 0; font-size: 0.85rem; color: #a3b899;">Panel de Administración</p>
+      </div>
+
+      <nav class="sidebar-nav" style="display: flex; flex-direction: column; gap: 0.5rem; padding: 0 1rem; flex-grow: 1;">
+        <!-- ENLACE ACTIVO CON FONDO CLARO Y TEXTO OSCURO -->
+        <a href="reservas.html" id="linkReservas" class="nav-item active" style="display: block; padding: 0.75rem 1rem; border-radius: 8px; text-decoration: none; background-color: #f4f6f0; color: #1a2e1d !important; font-weight: 700;">
+          Reservas
+        </a>
+        <a href="horarios.html" id="linkHorarios" class="nav-item" style="display: block; padding: 0.75rem 1rem; border-radius: 8px; text-decoration: none; color: #fff; font-weight: 500;">
+          Horarios y Turnos
+        </a>
+        <a href="index.html" class="nav-item" style="display: block; padding: 0.75rem 1rem; border-radius: 8px; text-decoration: none; color: #fff; font-weight: 500;">
+          Ver Sitio Web
+        </a>
+      </nav>
+
+      <div class="sidebar-footer" style="padding: 1.5rem 1rem;">
+        <a href="javascript:void(0)" id="btnCerrarSesion" class="btn-logout" style="display: block; padding: 0.75rem 1rem; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #ffb4ab; text-decoration: none; font-size: 0.9rem; font-weight: 500;">
+          Cerrar sesión
+        </a>
+      </div>
+    </aside>
 
     <main class="admin-main">
       <header>
@@ -24,12 +72,12 @@
       <section class="stats-grid" aria-label="Resumen">
         <article class="card stat">
           <p class="stat-label">Reservas de hoy</p>
-          <p class="stat-value">12</p>
-          <p id="stat-approved" class="stat-hint"></p>
+          <p id="stat-today" class="stat-value">12</p>
+          <p id="stat-approved" class="stat-hint">0 aprobadas</p>
         </article>
         <article class="card stat">
           <p class="stat-label">Pendientes</p>
-          <p id="stat-pending" class="stat-value"></p>
+          <p id="stat-pending" class="stat-value">0</p>
           <p class="stat-hint">Requieren revisión</p>
         </article>
         <article class="card stat">
@@ -43,7 +91,7 @@
         <div class="table-header">
           <div>
             <h2 class="table-title">Solicitudes recientes</h2>
-            <p id="results-count" class="text-xs muted"></p>
+            <p id="results-count" class="text-xs muted">Cargando...</p>
           </div>
           <div class="filters">
             <div class="field">

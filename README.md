@@ -23,3 +23,16 @@ y eso seria lo inicial.
 5- muy importante al url que nos dio debemos modificarlo un poco https://xxxxx.ngrok-free.app/docs y listo
 https://zombie-impending-capably.ngrok-free.dev/docs /// Va a cambiar
 
+
+# Pruebas
+Administrador
+
+juan.perez@restaurante.cl
+clave123
+
+
+Trabajador
+
+carlos.munoz@restaurante.cl
+clave456
+

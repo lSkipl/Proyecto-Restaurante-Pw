@@ -1,270 +1,215 @@
-from fastapi import APIRouter, HTTPException
-from database import get_connection
-from models import ReservaIn
+from fastapi import APIRouter, HTTPException, status
+from database import get_db
+from pydantic import BaseModel
+from bson import ObjectId
+from bson.errors import InvalidId
+from typing import Optional
 
 router = APIRouter(prefix="/Reservas", tags=["Reservas"])
 
 
-# --- Agregar reserva ---
-@router.post("/Insert")
-def agregar_reserva(item: ReservaIn):
+class EstadoUpdate(BaseModel):
+    Estado: str  # 'aprobada', 'rechazada' o 'pendiente'
 
-    conn = get_connection()
-    cursor = conn.cursor()
 
+class CrearReservaIn(BaseModel):
+    nombre: str
+    apellido: str
+    identificador: str
+    telefono: str
+    fecha: str
+    hora: str
+    plato: Optional[str] = "Sin plato"
+    lugar: str
+
+
+# --- 1. Crear una nueva reserva con validación de disponibilidad ---
+@router.post("/Crear")
+def crear_reserva(datos: CrearReservaIn):
+    db = get_db()
     try:
+        # Validación de choque de horarios:
+        # Verifica si ya hay una reserva para el mismo lugar, fecha y hora (omitiendo rechazadas)
+        reserva_ocupada = db.reservas.find_one({
+            "fecha": datos.fecha,
+            "hora": datos.hora,
+            "lugar": datos.lugar,
+            "estado": {"$nin": ["rechazada", "0", 0, "cancelada"]}
+        })
 
-        # Verificar que el usuario exista
-        cursor.execute(
-            """ SELECT Id_Usuario FROM Usuario  WHERE Id_Usuario = ? """, (item.Id_Usuario,) )
+        if reserva_ocupada:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"El lugar '{datos.lugar}' ya se encuentra reservado para el {datos.fecha} a las {datos.hora}."
+            )
 
-        usuario = cursor.fetchone()
-
-        if not usuario:
-            raise HTTPException(status_code=404, detail=f"El usuario {item.Id_Usuario} no existe.")
-
-        # Verificar que el menú exista
-        cursor.execute( """ SELECT Platos FROM Menu WHERE Platos = ? """, (item.Platos,))
-
-        menu = cursor.fetchone()
-
-        if not menu:
-            raise HTTPException( status_code=404, detail=f"El menú '{item.Platos}' no existe.")
-
-        # Insertar la reserva
-        cursor.execute(""" INSERT INTO Reserva (Id_Usuario,Platos,Fecha,Hora,Lugar,Estado)VALUES (?, ?, ?, ?, ?, ?)""",
-            (item.Id_Usuario, item.Platos, item.Fecha, item.Hora, item.Lugar, item.Estado))
-
-        conn.commit()
-
-        # Obtener el ID generado automáticamente
-        id_reserva = cursor.lastrowid
-
-        return {
-            "mensaje": "Reserva agregada correctamente.",
-            "Id_reserva": id_reserva
-        }
-
-    except HTTPException:
-        conn.rollback()
-        raise
-
-    except Exception as e:
-        conn.rollback()
-
-        raise HTTPException( status_code=500, detail=f"Error al agregar la reserva: {str(e)}")
-
-    finally:
-        conn.close()
-
-
-# --- Consultar reservas por Id_Usuario ---
-@router.get("/Select")
-def obtener_reservas_rut(Id_Usuario: str):
-
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute( """ SELECT Id_Transaccion, Id_reserva, Id_Usuario, Platos, Fecha, Hora, Lugar, Estado FROM Reserva WHERE Id_Usuario = ? """, (Id_Usuario,))
-
-    rows = cursor.fetchall()
-
-    conn.close()
-
-    return [
-        {
-            "Id_Transaccion": r[0],
-            "Id_reserva": r[1],
-            "Id_Usuario": r[2],
-            "Platos": r[3],
-            "Fecha": r[4],
-            "Hora": r[5],
-            "Lugar": r[6],
-            "Estado": r[7]
-        }
-        for r in rows
-    ]
-
-
-# --- Consultar reservas por menú y mostrar precio ---
-@router.get("/Join")
-def obtener_reservas_por_tipo_de_menu(Menu: str):
-
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute(""" SELECT Reserva.Id_Transaccion, Reserva.Id_reserva, Reserva.Id_Usuario, Reserva.Platos, Menu.Precio, Reserva.Fecha, Reserva.Hora,
-            Reserva.Lugar, Reserva.Estado FROM Reserva INNER JOIN Menu ON Reserva.Platos = Menu.Platos WHERE Reserva.Platos = ? """, (Menu,))
-
-    rows = cursor.fetchall()
-
-    conn.close()
-
-    if not rows:
-        raise HTTPException(status_code=404, detail=f"Las reservas con {Menu} no fueron encontradas.")
-
-    return [
-        {
-            "Id_Transaccion": r[0],
-            "Id_reserva": r[1],
-            "Id_usuario": r[2],
-            "Platos": r[3],
-            "Precio": r[4],
-            "Fecha": r[5],
-            "Hora": r[6],
-            "Lugar": r[7],
-            "Estado": r[8]
-        }
-        for r in rows
-    ]
-
-
-# --- Modificar datos de una reserva ---
-@router.put("/Update")
-def modificar_datos_reserva(Id_reserva: int, item: ReservaIn):
-
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute(""" SELECT * FROM Reserva WHERE Id_reserva = ? """, (Id_reserva,))
-
-    existente = cursor.fetchone()
-
-    if not existente:
-        conn.close()
-
-        raise HTTPException(status_code=404, detail=f"La reserva Id: {Id_reserva} no fue encontrada.")
-
-    try:
-
-        cursor.execute(
-            """ UPDATE Reserva SET Id_Usuario = ?, Platos = ?, Fecha = ?, Hora = ?, Lugar = ?, Estado = ? WHERE Id_reserva = ? """,
-            (item.Id_Usuario,item.Platos, item.Fecha, item.Hora, item.Lugar, item.Estado, Id_reserva)
+        # Registrar o actualizar los datos del cliente en la colección 'usuarios'
+        db.usuarios.update_one(
+            {"$or": [{"identificador": datos.identificador}, {"id_usuario": datos.identificador}]},
+            {"$set": {
+                "nombre": datos.nombre,
+                "apellido": datos.apellido,
+                "identificador": datos.identificador,
+                "id_usuario": datos.identificador,
+                "contacto": datos.telefono
+            }},
+            upsert=True
         )
 
-        conn.commit()
-
-        return {
-            "mensaje": f"Los datos de la reserva {Id_reserva} fueron actualizados correctamente."
+        # Insertar la reserva en la colección 'reservas'
+        nueva_reserva = {
+            "id_usuario": datos.identificador,
+            "fecha": datos.fecha,
+            "hora": datos.hora,
+            "lugar": datos.lugar,
+            "platos": datos.plato,
+            "estado": "pendiente"
         }
 
-    except Exception as e:
-        conn.rollback()
-
-        raise HTTPException(status_code=500, detail=f"Error al modificar la reserva: {str(e)}")
-
-    finally:
-        conn.close()
-
-
-# --- Eliminar reserva ---
-@router.delete("/Delete")
-def eliminar_reserva(Id_reserva: int):
-
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    try:
-
-        # Verificar que la reserva exista
-        cursor.execute(""" SELECT Id_reserva FROM Reserva WHERE Id_reserva = ? """, (Id_reserva,))
-
-        reserva = cursor.fetchone()
-
-        if not reserva:
-            raise HTTPException(status_code=404, detail=f"La reserva {Id_reserva} no fue encontrada." )
-
-        # Verificar si la reserva tiene una transacción asociada
-        cursor.execute(
-            """ SELECT Id_Transaccion FROM Transaccion WHERE Id_reserva = ?  """, (Id_reserva,))
-
-        transaccion = cursor.fetchone()
-
-        if transaccion:
-            raise HTTPException(status_code=400, detail=f"No se puede eliminar la reserva {Id_reserva} porque tiene una transacción asociada.")
-
-        # Eliminar la reserva
-        cursor.execute( """ DELETE FROM Reserva WHERE Id_reserva = ? """, (Id_reserva,))
-
-        conn.commit()
+        resultado = db.reservas.insert_one(nueva_reserva)
 
         return {
-            "mensaje": f"La reserva {Id_reserva} fue eliminada del sistema."
+            "mensaje": "Reserva solicitada con éxito.",
+            "codigo": str(resultado.inserted_id)
         }
 
     except HTTPException:
-        conn.rollback()
         raise
-
     except Exception as e:
-        conn.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al procesar la reserva en MongoDB: {str(e)}"
+        )
 
-        raise HTTPException(status_code=500, detail=f"Error al eliminar la reserva: {str(e)}")
 
-    finally:
-        conn.close()
-
-# --- Caso de Uso: Consulta de reservas ---
-@router.get("/Consulta")
-def consulta_reservas(
-    Id_Usuario: str,
-    Estado: int,
-    FechaDesde: str | None = None,
-    FechaHasta: str | None = None,
-    Platos: str | None = None,
-    Lugar: str | None = None
-):
-
-    conn = get_connection()
-    cursor = conn.cursor()
-
+# --- 2. Listar todas las reservas para la interfaz web ---
+@router.get("/Listar")
+def listar_reservas():
+    db = get_db()
     try:
+        reservas = list(db.reservas.find())
 
-        # Filtros obligatorios
-        sql = """ SELECT Id_Transaccion, Id_reserva, Id_Usuario, Platos, Fecha, Hora, Lugar, Estado FROM Reserva WHERE Id_Usuario = ? AND Estado = ? """
+        # Crear mapa de usuarios consultando tanto 'usuarios' como 'trabajador'
+        usuarios_totales = list(db.usuarios.find()) + list(db.trabajador.find())
+        mapa_usuarios = {}
+        for u in usuarios_totales:
+            rut = u.get("id_usuario") or u.get("identificador")
+            if rut:
+                nombre = u.get("nombre", "")
+                apellido = u.get("apellido", "")
+                contacto = u.get("contacto", "Sin contacto")
+                mapa_usuarios[rut] = {
+                    "nombre_completo": f"{nombre} {apellido}".strip(),
+                    "contacto": contacto
+                }
 
-        parametros = [Id_Usuario, Estado]
+        resultado = []
+        for r in reservas:
+            id_u = r.get("id_usuario") or r.get("usuario_id")
+            cliente_info = mapa_usuarios.get(id_u, {
+                "nombre_completo": "Cliente Álamos",
+                "contacto": "Sin contacto"
+            })
 
-        # Filtros opcionales
-        if FechaDesde is not None:
-            sql += " AND Fecha >= ?"
-            parametros.append(FechaDesde)
+            # Lectura directa de fecha y hora
+            fecha_str = r.get("fecha", "-")
+            hora_str = r.get("hora", "-")
 
-        if FechaHasta is not None:
-            sql += " AND Fecha <= ?"
-            parametros.append(FechaHasta)
+            # Normalización del estado
+            est = r.get("estado")
+            if est == 1 or str(est).lower() in ["1", "aprobada", "confirmada"]:
+                estado_texto = "Aprobada"
+            elif est == 0 or str(est).lower() in ["0", "rechazada", "cancelada"]:
+                estado_texto = "Rechazada"
+            else:
+                estado_texto = str(est).capitalize()
 
-        if Platos is not None:
-            sql += " AND Platos = ?"
-            parametros.append(Platos)
+            platos = r.get("platos") or r.get("plato", {}).get("nombre", "Sin plato")
 
-        if Lugar is not None:
-            sql += " AND Lugar = ?"
-            parametros.append(Lugar)
+            resultado.append({
+                # Claves en inglés esperadas por la plantilla actual
+                "code": str(r["_id"]),
+                "client": cliente_info["nombre_completo"],
+                "date": fecha_str,
+                "time": hora_str,
+                "table": r.get("lugar", "Mesa asignada"),
+                "status": estado_texto,
+                "guests": 2,
+                "phone": cliente_info["contacto"],
+                "notes": f"Platos: {platos}",
 
-        sql += " ORDER BY Fecha ASC, Hora ASC"
+                # Claves en español por retrocompatibilidad
+                "Codigo": str(r.get("id_reserva", r["_id"])),
+                "Cliente": cliente_info["nombre_completo"],
+                "Fecha": fecha_str,
+                "Hora": hora_str,
+                "Lugar": r.get("lugar", "Mesa asignada"),
+                "Estado": estado_texto,
+                "Platos": platos
+            })
 
-        cursor.execute(sql, parametros)
-
-        rows = cursor.fetchall()
-
-        return [
-            {
-                "Id_Transaccion": r[0],
-                "Id_reserva": r[1],
-                "Id_Usuario": r[2],
-                "Platos": r[3],
-                "Fecha": r[4],
-                "Hora": r[5],
-                "Lugar": r[6],
-                "Estado": r[7]
-            }
-            for r in rows
-        ]
-
+        return resultado
     except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al listar reservas en MongoDB: {str(e)}"
+        )
 
-        raise HTTPException( status_code=500, detail=f"Error al realizar la consulta: {str(e)}")
 
-    finally:
-        conn.close()
+# --- 3. Actualizar el estado de la reserva (Aprobada / Rechazada) ---
+@router.put("/Estado/{id_reserva}")
+def actualizar_estado(id_reserva: str, datos: EstadoUpdate):
+    db = get_db()
+    try:
+        try:
+            filtro = {"_id": ObjectId(id_reserva)}
+        except InvalidId:
+            filtro = {"id_reserva": int(id_reserva)} if id_reserva.isdigit() else {"_id": id_reserva}
+
+        resultado = db.reservas.update_one(
+            filtro,
+            {"$set": {"estado": datos.Estado.lower()}}
+        )
+
+        if resultado.matched_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Reserva no encontrada."
+            )
+
+        return {"mensaje": f"Reserva actualizada a {datos.Estado}."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al actualizar estado en MongoDB: {str(e)}"
+        )
+
+
+# --- 4. Eliminar reserva ---
+@router.delete("/Delete/{id_reserva}")
+def eliminar_reserva(id_reserva: str):
+    db = get_db()
+    try:
+        try:
+            filtro = {"_id": ObjectId(id_reserva)}
+        except InvalidId:
+            filtro = {"id_reserva": int(id_reserva)} if id_reserva.isdigit() else {"_id": id_reserva}
+
+        resultado = db.reservas.delete_one(filtro)
+
+        if resultado.deleted_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Reserva no encontrada."
+            )
+
+        return {"mensaje": "Reserva eliminada de MongoDB exitosamente."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al eliminar reserva de MongoDB: {str(e)}"
+        )

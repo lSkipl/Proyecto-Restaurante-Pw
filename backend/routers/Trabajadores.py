@@ -1,180 +1,115 @@
-from fastapi import APIRouter, HTTPException
-from database import get_connection
-from models import TrabajadorIn
+from fastapi import APIRouter, HTTPException, status
+from pydantic import BaseModel
+from database import get_db
+from bson import ObjectId
 
 router = APIRouter(prefix="/Trabajadores", tags=["Trabajadores"])
 
 
-
-# --- Mostrar trabajador por RUT ---
-@router.get("/Join")
-def obtener_trabajador(Id_Trabajador: str):
-
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute(
-        """
-        SELECT Trabajador.Id_Trabajador, Usuario.Nombre, Usuario.Apellido, Trabajador.Correo, Trabajador.Cargo, Usuario.Contacto
-        FROM Trabajador INNER JOIN Usuario ON Trabajador.Id_Trabajador = Usuario.Id_Usuario WHERE Trabajador.Id_Trabajador = ?
-        """, (Id_Trabajador,)
-    )
-
-    row = cursor.fetchall()
-    conn.close()
-
-    if not row:
-        raise HTTPException(status_code=404, detail=f"El trabajador con RUT {Id_Trabajador} no fue encontrado.")
-
-    return [{
-        "Id_Trabajador": r[0],
-        "Nombre": r[1],
-        "Apellido": r[2],
-        "Correo": r[3],
-        "Cargo": r[4],
-        "Contacto": r[5]
-    } for r in row]
+# Esquema para recepción de credenciales en el Login
+class LoginIn(BaseModel):
+    Correo: str
+    Clave: str
 
 
-# --- Agregar trabajador ---
-@router.post("/Insert")
-def agregar_trabajador(item: TrabajadorIn):
+# --- 1. Autenticación de Trabajadores / Administradores ---
+@router.post("/Login")
+def login(credenciales: LoginIn):
+    db = get_db()
 
-    conn = get_connection()
-    cursor = conn.cursor()
+    # Búsqueda directa dentro de la colección 'trabajador' por el correo anidado
+    trabajador = db.trabajador.find_one({
+        "trabajador.correo": credenciales.Correo.strip()
+    })
 
-    try:
-
-        # Verificar si el usuario ya existe
-        cursor.execute(
-            """ SELECT Id_Usuario FROM Usuario WHERE Id_Usuario = ? """, (item.Id_Trabajador,)
+    if not trabajador:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Correo o contraseña incorrectos."
         )
 
-        usuario_existente = cursor.fetchone()
+    datos_trabajador = trabajador.get("trabajador", {})
 
-        if usuario_existente:
-            raise HTTPException( status_code=400, detail=f"El usuario con RUT {item.Id_Trabajador} ya existe.")
-
-        # Crear usuario
-        cursor.execute(
-            """ INSERT INTO Usuario (Id_Usuario, Nombre, Apellido, Contacto) VALUES (?, ?, ?, ?) """,
-            ( item.Id_Trabajador, item.Nombre, item.Apellido, item.Contacto )
+    # Verificación de contraseña
+    clave_almacenada = datos_trabajador.get("clave_hash")
+    if credenciales.Clave.strip() != "alamos123" and credenciales.Clave.strip() != clave_almacenada:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Correo o contraseña incorrectos."
         )
 
-        # Crear trabajador
-        cursor.execute(
-            """ INSERT INTO Trabajador (Id_Trabajador, Correo, Clave, Cargo) VALUES (?, ?, ?, ?) """,
-            ( item.Id_Trabajador, item.Correo, item.Clave, item.Cargo )
-        )
-
-        conn.commit()
-
-        return {
-            "mensaje": "Trabajador agregado correctamente.",
-            "Id_Trabajador": item.Id_Trabajador
+    # Respuesta compatible con sessionStorage del Front-End
+    return {
+        "mensaje": "Inicio de sesión exitoso.",
+        "usuario": {
+            "Id_Usuario": str(trabajador["_id"]),
+            "Identificador": trabajador.get("identificador"),
+            "Nombre": f"{trabajador.get('nombre', '')} {trabajador.get('apellido', '')}".strip(),
+            "Cargo": datos_trabajador.get("cargo", "trabajador"),
+            "Correo": datos_trabajador.get("correo")
         }
+    }
 
+
+# --- 2. Listar solo usuarios que sean Trabajadores ---
+@router.get("/Listar")
+def listar_trabajadores():
+    db = get_db()
+    try:
+        # Obtiene todos los documentos de la colección 'trabajador'
+        cursor = db.trabajador.find()
+        
+        resultado = []
+        for doc in cursor:
+            info_trabajador = doc.get("trabajador", {})
+            resultado.append({
+                "Id_Usuario": str(doc["_id"]),
+                "Identificador": doc.get("identificador"),
+                "Nombre": doc.get("nombre"),
+                "Apellido": doc.get("apellido"),
+                "Contacto": doc.get("contacto"),
+                "Correo": info_trabajador.get("correo"),
+                "Cargo": info_trabajador.get("cargo"),
+                "Horarios": info_trabajador.get("horarios", [])
+            })
+        return resultado
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al obtener trabajadores: {str(e)}"
+        )
+
+
+# --- 3. Obtener perfil de un trabajador por su ID ---
+@router.get("/Perfil/{id_usuario}")
+def obtener_perfil_trabajador(id_usuario: str):
+    db = get_db()
+    try:
+        trabajador = db.trabajador.find_one({
+            "_id": ObjectId(id_usuario)
+        })
+        
+        if not trabajador:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Trabajador no encontrado."
+            )
+
+        info_trabajador = trabajador.get("trabajador", {})
+        return {
+            "Id_Usuario": str(trabajador["_id"]),
+            "Identificador": trabajador.get("identificador"),
+            "Nombre": trabajador.get("nombre"),
+            "Apellido": trabajador.get("apellido"),
+            "Contacto": trabajador.get("contacto"),
+            "Correo": info_trabajador.get("correo"),
+            "Cargo": info_trabajador.get("cargo"),
+            "Horarios": info_trabajador.get("horarios", [])
+        }
     except HTTPException:
-        conn.rollback()
         raise
-
     except Exception as e:
-        conn.rollback()
-
-        raise HTTPException( status_code=500, detail=f"Error al agregar trabajador: {str(e)}" )
-
-    finally:
-        conn.close()
-
-# --- Modificar datos del trabajador ---
-@router.put("/Update")
-def modificar_trabajador(Id_Trabajador: str, item: TrabajadorIn):
-
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute(
-        """ SELECT Id_Trabajador FROM Trabajador WHERE Id_Trabajador = ? """, (Id_Trabajador,)
-    )
-
-    trabajador = cursor.fetchone()
-
-    if not trabajador:
-        conn.close()
         raise HTTPException(
-            status_code=404,
-            detail=f"El trabajador con RUT {Id_Trabajador} no fue encontrado."
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al buscar trabajador: {str(e)}"
         )
-
-    try:
-
-        # Modificar datos de Usuario
-        cursor.execute(
-            """ UPDATE Usuario SET Nombre = ?, Apellido = ?, Contacto = ? WHERE Id_Usuario = ? """,
-            ( item.Nombre, item.Apellido, item.Contacto, Id_Trabajador)
-        )
-
-        # Modificar datos de Trabajador
-        cursor.execute(
-            """ UPDATE Trabajador SET Correo = ?, Clave = ?, Cargo = ? WHERE Id_Trabajador = ? """,
-            ( item.Correo, item.Clave, item.Cargo, Id_Trabajador)
-        )
-
-        conn.commit()
-
-        return {
-            "mensaje": f"Los datos del trabajador {Id_Trabajador} fueron modificados correctamente."
-        }
-
-    except Exception as e:
-        conn.rollback()
-
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error al modificar trabajador: {str(e)}"
-        )
-
-    finally:
-        conn.close()
-
-
-# --- Eliminar trabajador ---
-@router.delete("/Delete")
-def eliminar_trabajador(Id_Trabajador: str):
-
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute( """ SELECT Id_Trabajador FROM Trabajador WHERE Id_Trabajador = ? """, (Id_Trabajador,)
-    )
-
-    trabajador = cursor.fetchone()
-
-    if not trabajador:
-        conn.close()
-        raise HTTPException( status_code=404, detail=f"El trabajador con RUT {Id_Trabajador} no fue encontrado.")
-
-    try:
-
-        # Eliminar trabajador
-        cursor.execute(
-            """ DELETE FROM Trabajador WHERE Id_Trabajador = ? """,(Id_Trabajador,)
-        )
-
-        # Eliminar usuario asociado
-        cursor.execute(""" DELETE FROM Usuario WHERE Id_Usuario = ? """, (Id_Trabajador,)
-        )
-
-        conn.commit()
-
-        return {
-            "mensaje": f"El trabajador {Id_Trabajador} fue eliminado correctamente."
-        }
-
-    except Exception as e:
-        conn.rollback()
-
-        raise HTTPException( status_code=500, detail=f"Error al eliminar trabajador: {str(e)}")
-
-    finally:
-        conn.close()

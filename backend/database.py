@@ -1,11 +1,19 @@
-import sqlite3
 import os
+from pymongo import MongoClient
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# URI actualizada con la nueva contraseña
+MONGO_URI = os.getenv(
+    "MONGO_URI",
+    "mongodb+srv://ignaciojuanduran_db_user:Alamos12345@cluster0.sz7yxcs.mongodb.net/?retryWrites=true&w=majority"
+)
 
-DATABASE = os.path.join(BASE_DIR, "Restaurante.sqlite")
+DATABASE_NAME = "alamos_restaurante"
 
+client = MongoClient(MONGO_URI)
+db = client[DATABASE_NAME]
+
+def get_db():
+    return db
 
 def get_connection():
-    conn = sqlite3.connect(DATABASE)
-    return conn
+    return db

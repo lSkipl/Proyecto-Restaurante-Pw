@@ -1,211 +1,117 @@
-from fastapi import APIRouter, HTTPException
-from database import get_connection
-from models import HorarioIn
+from fastapi import APIRouter, HTTPException, status
+from database import get_db
+from pydantic import BaseModel
+from typing import List
+from bson import ObjectId
+from bson.errors import InvalidId
 
 router = APIRouter(prefix="/Horarios", tags=["Horarios"])
 
 
-# --- Consultar horarios de un trabajador ---
-@router.get("/Select")
-def obtener_horarios(Id_Trabajador: str):
+class HorarioItem(BaseModel):
+    dia: str
+    hora_inicio: str
+    hora_termino: str
 
-    conn = get_connection()
-    cursor = conn.cursor()
 
+class GuardarHorariosIn(BaseModel):
+    id_usuario: str
+    horarios: List[HorarioItem]
+
+
+def item_to_dict(item: HorarioItem) -> dict:
+    if hasattr(item, "model_dump"):
+        return item.model_dump()
+    return item.dict()
+
+
+# --- 1. Listar trabajadores para el selector desplegable ---
+@router.get("/Trabajadores")
+def listar_trabajadores():
+    db = get_db()
     try:
+        # Consulta en la colección 'trabajador'
+        trabajadores = db.trabajador.find()
 
-        # Verificar que el trabajador exista
-        cursor.execute(
-            """
-            SELECT Id_Trabajador
-            FROM Trabajador
-            WHERE Id_Trabajador = ?
-            """,
-            (Id_Trabajador,)
+        resultado = []
+        for t in trabajadores:
+            nombre_completo = f"{t.get('nombre', '')} {t.get('apellido', '')}".strip()
+            cargo = t.get("trabajador", {}).get("cargo", "Personal")
+            resultado.append({
+                "id": str(t["_id"]),
+                "nombre": f"{nombre_completo} ({cargo})"
+            })
+        return resultado
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al listar trabajadores: {str(e)}"
         )
 
-        trabajador = cursor.fetchone()
 
-        if not trabajador:
+# --- 2. Obtener los turnos guardados de un trabajador ---
+@router.get("/Obtener/{id_usuario}")
+def obtener_horarios(id_usuario: str):
+    db = get_db()
+    try:
+        try:
+            oid = ObjectId(id_usuario)
+        except InvalidId:
             raise HTTPException(
-                status_code=404,
-                detail=f"El trabajador {Id_Trabajador} no existe."
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Formato de ID de trabajador inválido."
             )
 
-        # Obtener sus horarios
-        cursor.execute(""" SELECT Id_Trabajador, Dia, Hora_Inicio, Hora_Termino FROM Horario WHERE Id_Trabajador = ?
-            ORDER BY CASE Dia WHEN 'Lunes' THEN 1 WHEN 'Martes' THEN 2 WHEN 'Miércoles' THEN 3 WHEN 'Jueves' THEN 4
-            WHEN 'Viernes' THEN 5 WHEN 'Sábado' THEN 6 WHEN 'Domingo' THEN 7 END """, (Id_Trabajador,))
-
-        rows = cursor.fetchall()
-
-        return [
-            {
-                "Id_Trabajador": r[0],
-                "Dia": r[1],
-                "Hora_Inicio": r[2],
-                "Hora_Termino": r[3]
-            }
-            for r in rows
-        ]
-
-    finally:
-        conn.close()
-
-
-# --- Crear horario ---
-@router.post("/Insert")
-def agregar_horario(item: HorarioIn):
-
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    try:
-
-        # Verificar que el trabajador exista
-        cursor.execute( """ SELECT Id_Trabajador FROM Trabajador WHERE Id_Trabajador = ? """, (item.Id_Trabajador,))
-
-        trabajador = cursor.fetchone()
-
-        if not trabajador:
-            raise HTTPException(status_code=404, detail=f"El trabajador {item.Id_Trabajador} no existe.")
-
-        # Verificar que el trabajador no tenga ya un horario ese día
-        cursor.execute(""" SELECT Id_Trabajador FROM Horario WHERE Id_Trabajador = ? AND Dia = ? """, (item.Id_Trabajador, item.Dia))
-
-        horario = cursor.fetchone()
-
-        if horario:
-            raise HTTPException(status_code=400,detail=f"El trabajador ya tiene un horario asignado para el día {item.Dia}.")
-
-        # Insertar horario
-        cursor.execute(""" INSERT INTO Horario (Id_Trabajador, Dia, Hora_Inicio, Hora_Termino) VALUES (?, ?, ?, ?) """,
-            (item.Id_Trabajador, item.Dia, item.Hora_Inicio, item.Hora_Termino))
-
-        conn.commit()
-
-        return {
-            "mensaje": "Horario agregado correctamente.",
-            "Id_Trabajador": item.Id_Trabajador,
-            "Dia": item.Dia
-        }
-
-    except HTTPException:
-        conn.rollback()
-        raise
-
-    except Exception as e:
-        conn.rollback()
-
-        raise HTTPException(status_code=500, detail=f"Error al agregar el horario: {str(e)}")
-
-    finally:
-        conn.close()
-
-
-# --- Modificar horario ---
-@router.put("/Update")
-def modificar_horario(
-    Id_Trabajador: str,
-    Dia: str,
-    item: HorarioIn
-):
-
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    try:
-
-        # Verificar que el horario exista
-        cursor.execute(""" SELECT Id_Trabajador, Dia FROM Horario WHERE Id_Trabajador = ? AND Dia = ? """, (Id_Trabajador, Dia))
-
-        horario = cursor.fetchone()
-
-        if not horario:
-            raise HTTPException(status_code=404, detail=f"No existe un horario para el trabajador {Id_Trabajador} el día {Dia}.")
-
-        # Verificar que el trabajador nuevo exista
-        cursor.execute(""" SELECT Id_Trabajador FROM Trabajador WHERE Id_Trabajador = ? """, (item.Id_Trabajador,))
-
-        trabajador = cursor.fetchone()
-
-        if not trabajador:
-            raise HTTPException(status_code=404, detail=f"El trabajador {item.Id_Trabajador} no existe.")
-
-        # Si se cambia el trabajador o el día,
-        # verificar que no exista otro horario con esa combinación
-        if Id_Trabajador != item.Id_Trabajador or Dia != item.Dia:
-
-            cursor.execute("""SELECT Id_Trabajador FROM Horario WHERE Id_Trabajador = ? AND Dia = ?""",(item.Id_Trabajador, item.Dia)
+        # Consulta en la colección 'trabajador'
+        trabajador = db.trabajador.find_one({"_id": oid})
+        if not trabajador or "trabajador" not in trabajador:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Trabajador no encontrado."
             )
 
-            existe = cursor.fetchone()
-
-            if existe:
-                raise HTTPException(status_code=400, detail=f"El trabajador ya tiene un horario asignado para el día {item.Dia}.")
-
-        # Modificar horario
-        cursor.execute(""" UPDATE Horario SET Id_Trabajador = ?, Dia = ?, Hora_Inicio = ?,Hora_Termino = ? WHERE Id_Trabajador = ? AND Dia = ? """,
-            (item.Id_Trabajador, item.Dia, item.Hora_Inicio, item.Hora_Termino, Id_Trabajador, Dia))
-
-        conn.commit()
-
-        return {
-            "mensaje": "El horario fue actualizado correctamente.",
-            "Id_Trabajador": item.Id_Trabajador,
-            "Dia": item.Dia
-        }
-
+        return trabajador["trabajador"].get("horarios", [])
     except HTTPException:
-        conn.rollback()
         raise
-
     except Exception as e:
-        conn.rollback()
-
-        raise HTTPException(status_code=500, detail=f"Error al modificar el horario: {str(e)}")
-
-    finally:
-        conn.close()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al obtener horarios: {str(e)}"
+        )
 
 
-# --- Eliminar horario ---
-@router.delete("/Delete")
-def eliminar_horario(
-    Id_Trabajador: str,
-    Dia: str
-):
-
-    conn = get_connection()
-    cursor = conn.cursor()
-
+# --- 3. Guardar / Actualizar los turnos en el documento de MongoDB ---
+@router.put("/Guardar")
+def guardar_horarios(datos: GuardarHorariosIn):
+    db = get_db()
     try:
+        try:
+            oid = ObjectId(datos.id_usuario)
+        except InvalidId:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Formato de ID de trabajador inválido."
+            )
 
-        # Verificar que el horario exista
-        cursor.execute(""" SELECT Id_Trabajador, Dia FROM Horario WHERE Id_Trabajador = ? AND Dia = ? """, (Id_Trabajador, Dia))
+        horarios_dict = [item_to_dict(h) for h in datos.horarios]
 
-        horario = cursor.fetchone()
+        # Actualiza el documento en la colección 'trabajador'
+        resultado = db.trabajador.update_one(
+            {"_id": oid},
+            {"$set": {"trabajador.horarios": horarios_dict}}
+        )
 
-        if not horario:
-            raise HTTPException(status_code=404, detail=f"No existe un horario para el trabajador {Id_Trabajador} el día {Dia}.")
+        if resultado.matched_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No se encontró el trabajador especificado."
+            )
 
-        # Eliminar horario
-        cursor.execute(""" DELETE FROM Horario WHERE Id_Trabajador = ? AND Dia = ? """, (Id_Trabajador, Dia))
-
-        conn.commit()
-
-        return {
-            "mensaje": f"El horario del día {Dia} fue eliminado correctamente."
-        }
-
+        return {"mensaje": "Horarios actualizados exitosamente en MongoDB."}
     except HTTPException:
-        conn.rollback()
         raise
-
     except Exception as e:
-        conn.rollback()
-
-        raise HTTPException(status_code=500,detail=f"Error al eliminar el horario: {str(e)}")
-
-    finally:
-        conn.close()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al guardar horarios: {str(e)}"
+        )

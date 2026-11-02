@@ -7,7 +7,9 @@
 
 4- winget install ngrok -s msstore (instalar ngrok)  puedes verifcar la version con ngrok version
 
-6- loguear ngrok ngrok config add-authtoken "TU_TOKEN"
+5- pip install fastapi uvicorn pymongo dnspython pydantic
+
+6- loguear ngrok ngrok config add-authtoken "TU_TOKEN" es importante cambiar algunos configuraciones del codigo si se ocupa otro token de ngrok
 
 y eso seria lo inicial.
 # Para poder ejecutar el programa

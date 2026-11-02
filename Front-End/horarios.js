@@ -1,6 +1,3 @@
-// ==========================================
-// CONFIGURACIÓN DE CONEXIÓN
-// ==========================================
 const API_URL = "https://olive-stood-quizzical.ngrok-free.dev";
 
 const DIAS_SEMANA = [
@@ -16,7 +13,7 @@ const DIAS_SEMANA = [
 let turnosActuales = [];
 
 document.addEventListener("DOMContentLoaded", async () => {
-  // 1. Obtener sesión sin riesgo de expulsión
+  
   const rawSesion = sessionStorage.getItem("usuario") 
                  || sessionStorage.getItem("usuario_sesion")
                  || localStorage.getItem("usuario")
@@ -39,21 +36,21 @@ document.addEventListener("DOMContentLoaded", async () => {
   const cargo = (usuario.Cargo || usuario.cargo || "").toLowerCase();
   const esAdmin = cargo.includes("admin");
 
-  // 2. Personalizar botón de Cerrar Sesión
+
   configurarBotonCerrar(usuario);
 
-  // 3. Aplicar restricciones si es Garzón / Cocinero / etc.
+
   if (!esAdmin) {
-    // Ocultar acceso a Reservas
+   
     const linkReservas = document.getElementById("linkReservas");
     if (linkReservas) linkReservas.style.display = "none";
 
-    // Ocultar botón 'Guardar cambios'
+    
     const btnGuardar = document.getElementById("save-btn");
     if (btnGuardar) btnGuardar.style.display = "none";
   }
 
-  // 4. Cargar la lista de trabajadores y sus horarios
+ 
   await cargarTrabajadores(usuario, esAdmin);
 });
 
@@ -71,7 +68,7 @@ function configurarBotonCerrar(usuario) {
   }
 }
 
-// Cargar trabajadores en el <select id="worker">
+
 async function cargarTrabajadores(usuarioLogueado, esAdmin) {
   const select = document.getElementById("worker");
   if (!select) return;
@@ -87,7 +84,7 @@ async function cargarTrabajadores(usuarioLogueado, esAdmin) {
     select.innerHTML = "";
 
     if (esAdmin) {
-      // Administrador: puede seleccionar a cualquier trabajador
+   
       trabajadores.forEach(t => {
         const opt = document.createElement("option");
         opt.value = t.id;
@@ -107,7 +104,7 @@ async function cargarTrabajadores(usuarioLogueado, esAdmin) {
         btnGuardar.onclick = guardarHorarios;
       }
     } else {
-      // Trabajador normal: solo se ve a sí mismo y queda bloqueado
+     
       const miId = usuarioLogueado.Id_Usuario || usuarioLogueado.id;
       const opt = document.createElement("option");
       opt.value = miId;
@@ -145,7 +142,6 @@ async function cargarHorarios(idTrabajador, esAdmin) {
   }
 }
 
-// Renderizar las 7 tarjetas en <section id="days">
 function renderizarTarjetas(contenedor, horarios, esAdmin) {
   contenedor.innerHTML = "";
 
@@ -192,13 +188,13 @@ function renderizarTarjetas(contenedor, horarios, esAdmin) {
   });
 }
 
-// Asignar nuevo turno (Admin)
+// Asignar nuevo turno 
 window.asignarTurnoNuevo = function(dia) {
   turnosActuales.push({ dia: dia, hora_inicio: "09:00", hora_termino: "17:00" });
   renderizarTarjetas(document.getElementById("days"), turnosActuales, true);
 };
 
-// Eliminar turno (Admin)
+// Eliminar turno 
 window.eliminarTurno = function(dia) {
   turnosActuales = turnosActuales.filter(h => h.dia.toLowerCase() !== dia.toLowerCase());
   renderizarTarjetas(document.getElementById("days"), turnosActuales, true);

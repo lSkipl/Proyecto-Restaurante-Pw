@@ -1,59 +1,45 @@
-// ==========================================
-// CONFIGURACIÓN DE CONEXIÓN
-// ==========================================
 const API_URL = "https://olive-stood-quizzical.ngrok-free.dev";
 
-// Catálogo de platos para actualizar el resumen visual interactivo
-const PLATOS_INFO = {
-  "Risotto de champiñones": {
-    precio: "$12.500",
-    desc: "Arroz arbóreo, mix de hongos, parmesano y aceite de hierbas."
-  },
-  "Salmón a la plancha": {
-    precio: "$14.900",
-    desc: "Filete de salmón fresco con vegetales salteados y reducción de cítricos."
-  },
-  "Pastel de choclo": {
-    precio: "$11.000",
-    desc: "Receta tradicional chilena con pino de carne, pollo y pasta de choclo gratinada."
-  },
-  "Ensalada de estación": {
-    precio: "$8.500",
-    desc: "Mix de hojas verdes, tomates cherry, palta, frutos secos y vinagreta balsámica."
-  }
+//Imagenes de los platos
+const IMAGENES_PLATOS = {
+  "Pizza Napolitana": "images/pizza_napolitana.jpg",
+  "Pizza Familiar": "images/pizza_familiar.jpg",
+  "Hamburguesa Clásica": "images/hamburguesa.jpg",
+  "Hamburguesa BBQ": "images/hamburguesa_bbq.jpg",
+  "Pasta Alfredo": "images/pasta_alfredo.jpg",
+  "Lasaña": "images/lasana.jpg",
+  "Ensalada César": "images/ensalada_cesar.jpg",
+  "Sopa del Día": "images/sopa_del_dia.jpg",
+  "Salmón a la plancha": "images/salmon_plancha.jpg"
 };
 
-document.addEventListener("DOMContentLoaded", () => {
+// Almacena en memoria el menú obtenido desde MongoDB
+let catalogoPlatos = {};
+
+document.addEventListener("DOMContentLoaded", async () => {
   const form = document.querySelector(".reserve-form");
   const inputFecha = document.getElementById("fecha");
   const selectPlato = document.getElementById("plato");
   const submitBtn = form?.querySelector('button[type="submit"]');
 
-  // 1. Evitar que seleccionen fechas anteriores a la de hoy
+ 
   if (inputFecha) {
     const hoy = new Date().toISOString().split("T")[0];
     inputFecha.min = hoy;
   }
 
-  // 2. Sincronizar el plato seleccionado con la tarjeta de resumen derecha
+ 
+  await cargarMenuDesdeBD(selectPlato);
+
+
   if (selectPlato) {
     selectPlato.addEventListener("change", (e) => {
-      const platoElegido = e.target.value;
-      const info = PLATOS_INFO[platoElegido];
-
-      const summaryTitle = document.getElementById("summary-title");
-      const summaryDesc = document.querySelector(".summary-desc");
-      const summaryPrice = document.querySelector(".summary-price dd");
-
-      if (info) {
-        if (summaryTitle) summaryTitle.textContent = platoElegido;
-        if (summaryDesc) summaryDesc.textContent = info.desc;
-        if (summaryPrice) summaryPrice.textContent = info.precio;
-      }
+      const platoSeleccionado = e.target.value;
+      actualizarResumenPlato(platoSeleccionado);
     });
   }
 
-  // 3. Envío y validación del formulario de reserva
+
   if (form) {
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -64,16 +50,14 @@ document.addEventListener("DOMContentLoaded", () => {
       const telefono = document.getElementById("telefono")?.value.trim() || "";
       const fecha = document.getElementById("fecha")?.value || "";
       const hora = document.getElementById("hora")?.value || "";
-      const plato = document.getElementById("plato")?.value || "Sin plato";
+      const plato = selectPlato?.value || "Sin plato";
       const lugar = document.getElementById("lugar")?.value || "";
 
-      // Comprobación de campos obligatorios
-      if (!nombre || !apellido || !identificador || !telefono || !fecha || !hora || !lugar) {
+      if (!nombre || !apellido || !identificador || !telefono || !fecha || !hora || !lugar || !plato) {
         alert("Por favor completa todos los campos del formulario antes de continuar.");
         return;
       }
 
-      // Estado de carga en el botón
       const textoOriginal = submitBtn ? submitBtn.innerHTML : "Solicitar reserva";
       if (submitBtn) {
         submitBtn.disabled = true;
@@ -101,38 +85,39 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const data = await respuesta.json();
 
-        // Caso: Colisión de disponibilidad (Código 409 Conflict)
+        // Validación de choque de mesa/horario (409 Conflict)
         if (respuesta.status === 409) {
           alert(`⚠️ No disponible:\n${data.detail}\nPor favor elige otra hora o lugar.`);
           return;
         }
 
-        // Otros errores del servidor
         if (!respuesta.ok) {
           throw new Error(data.detail || "Error en el servidor al registrar la reserva.");
         }
 
-        // Caso: Éxito
         alert(
           `✅ ¡Solicitud enviada con éxito!\n\n` +
           `Cliente: ${nombre} ${apellido}\n` +
           `Lugar: ${lugar}\n` +
           `Horario: ${fecha} a las ${hora}\n` +
+          `Plato: ${plato}\n` +
           `Código de seguimiento: ${data.codigo}\n\n` +
           `Tu reserva quedó en estado pendiente de aprobación.`
         );
 
         form.reset();
+        if (inputFecha) inputFecha.min = new Date().toISOString().split("T")[0];
 
-        // Restablecer valores de resumen iniciales
-        if (inputFecha) {
-          const hoy = new Date().toISOString().split("T")[0];
-          inputFecha.min = hoy;
+        // Restablecer al primer plato cargado
+        const primerPlato = Object.keys(catalogoPlatos)[0];
+        if (primerPlato && selectPlato) {
+          selectPlato.value = primerPlato;
+          actualizarResumenPlato(primerPlato);
         }
 
       } catch (err) {
         console.error("Error al procesar reserva:", err);
-        alert("Ocurrió un error al intentar registrar la reserva. Comprueba si el servidor está encendido.");
+        alert("Ocurrió un error al intentar registrar la reserva. Comprueba si el backend está activo.");
       } finally {
         if (submitBtn) {
           submitBtn.disabled = false;
@@ -142,3 +127,64 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 });
+
+// Obtiene los datos del nuevo endpoint /Menu/ y puebla el select
+async function cargarMenuDesdeBD(selectElement) {
+  if (!selectElement) return;
+
+  try {
+    const res = await fetch(`${API_URL}/Menu/`, {
+      headers: { "ngrok-skip-browser-warning": "true" }
+    });
+
+    if (!res.ok) throw new Error("No se pudo obtener el menú.");
+
+    const platos = await res.json();
+    selectElement.innerHTML = "";
+    catalogoPlatos = {};
+
+    platos.forEach((p, index) => {
+      catalogoPlatos[p.nombre] = {
+        precio: p.precio,
+        desc: p.descripcion
+      };
+
+      const opt = document.createElement("option");
+      opt.value = p.nombre;
+      opt.textContent = p.nombre;
+      if (index === 0) opt.selected = true;
+      selectElement.appendChild(opt);
+    });
+
+    // Cargar la vista inicial con el primer plato recibido
+    if (platos.length > 0) {
+      actualizarResumenPlato(platos[0].nombre);
+    }
+
+  } catch (error) {
+    console.error("Error cargando el menú dinámico:", error);
+    selectElement.innerHTML = `<option value="">Error al cargar menú</option>`;
+  }
+}
+
+// Actualiza título, descripción, precio e imagen en la tarjeta lateral
+function actualizarResumenPlato(nombrePlato) {
+  const info = catalogoPlatos[nombrePlato];
+  if (!info) return;
+
+  const summaryTitle = document.getElementById("summary-title");
+  const summaryDesc = document.querySelector(".summary-desc");
+  const summaryPrice = document.querySelector(".summary-price dd");
+  const summaryImg = document.querySelector(".summary-image");
+
+  if (summaryTitle) summaryTitle.textContent = nombrePlato;
+  if (summaryDesc) summaryDesc.textContent = info.desc;
+  if (summaryPrice) summaryPrice.textContent = info.precio;
+
+  // Actualizar imagen con fallback a plato.png si no existe mapeo exacto
+  if (summaryImg) {
+    const rutaImagen = IMAGENES_PLATOS[nombrePlato] || "images/plato.png";
+    summaryImg.src = rutaImagen;
+    summaryImg.alt = `Plato de ${nombrePlato}`;
+  }
+}

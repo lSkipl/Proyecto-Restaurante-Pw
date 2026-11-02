@@ -11,7 +11,6 @@
   <link rel="stylesheet" href="Styles/styles.css" />
   <link rel="stylesheet" href="Styles/reservar.css" />
 </head>
-<script src="reservar.js"></script>
 <body>
   <header class="site-header">
     <div class="container header-inner">
@@ -28,7 +27,7 @@
           <li><a href="index.html">Inicio</a></li>
           <li><a href="index.html#menu">Menú</a></li>
           <li><a href="reservar.html" aria-current="page">Reservar</a></li>
-          <li><a href="#consultar">Consultar reserva</a></li>
+          <li><a href="consultar.html">Consultar reserva</a></li>
         </ul>
       </nav>
 
@@ -113,11 +112,9 @@
             </div>
             <div class="field">
               <label for="plato">Plato seleccionado</label>
-              <select id="plato" name="plato">
-                <option selected>Risotto de champiñones</option>
-                <option>Salmón a la plancha</option>
-                <option>Pastel de choclo</option>
-                <option>Ensalada de estación</option>
+              <!-- Menú cargado dinámicamente desde MongoDB mediante reservar.js -->
+              <select id="plato" name="plato" required>
+                <option value="" disabled selected>Cargando menú...</option>
               </select>
             </div>
             <div class="field">
@@ -150,16 +147,16 @@
         <img
           class="summary-image"
           src="images/plato.png"
-          alt="Plato de risotto de champiñones con salmón y flores comestibles"
+          alt="Plato del menú"
           width="1024"
           height="576"
         />
-        <h2 id="summary-title" class="summary-title">Risotto de champiñones</h2>
-        <p class="summary-desc">Arroz arbóreo, mix de hongos, parmesano y aceite de hierbas.</p>
+        <h2 id="summary-title" class="summary-title">Cargando plato...</h2>
+        <p class="summary-desc">Selecciona un plato para ver sus detalles.</p>
 
         <dl class="summary-price">
           <dt>Precio por plato</dt>
-          <dd>$12.500</dd>
+          <dd>--</dd>
         </dl>
 
         <div class="notice" role="note">
@@ -176,5 +173,10 @@
       </aside>
     </div>
   </main>
+
+ 
+   
+  <script src="reservar.js"></script>
+  <script src="reservar.js?v=1"></script>
 </body>
 </html>

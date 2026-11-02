@@ -1,12 +1,8 @@
-// ==========================================
-// CONFIGURACIÓN Y ESTADO GLOBAL
-// ==========================================
 const API_URL = "https://olive-stood-quizzical.ngrok-free.dev";
 
-let listaReservas = []; // Copia original traída desde MongoDB
+let listaReservas = []; 
 
 document.addEventListener("DOMContentLoaded", async () => {
-  // 1. Validar sesión activa
   const rawSesion = sessionStorage.getItem("usuario") 
                  || sessionStorage.getItem("usuario_sesion")
                  || localStorage.getItem("usuario");
@@ -19,7 +15,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   const sesion = JSON.parse(rawSesion);
   const usuario = sesion.usuario || sesion;
 
-  // Personalizar botón de cerrar sesión
   const btnCerrar = document.getElementById("btnCerrarSesion") 
                  || document.querySelector(".btn-logout")
                  || document.querySelector("a[href*='login']");
@@ -33,20 +28,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
   }
 
-  // 2. Asociar eventos a los filtros
   configurarFiltros();
-
-  // 3. Cargar reservas desde el backend
   await obtenerReservas();
 });
 
-// ==========================================
-// PETICIONES AL BACKEND
-// ==========================================
 async function obtenerReservas() {
   const tbody = document.querySelector("table tbody");
   if (tbody) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 2rem;">Cargando reservas...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="col-datos">Cargando reservas...</td></tr>`;
   }
 
   try {
@@ -57,35 +46,26 @@ async function obtenerReservas() {
     if (!res.ok) throw new Error("Error al obtener reservas");
 
     listaReservas = await res.json();
-    
-    // Actualizar métricas superiores (Hoy, Pendientes, etc.)
     actualizarMetricas(listaReservas);
-
-    // Renderizar tabla completa inicialmente
     aplicarFiltros();
 
   } catch (error) {
     console.error("Error al listar reservas:", error);
     if (tbody) {
-      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color: red; padding: 2rem;">No se pudo conectar con el servidor.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7" class="col-datos">No se pudo conectar con el servidor.</td></tr>`;
     }
   }
 }
 
-// ==========================================
-// RENDERIZADO DE TABLA Y BADGES
-// ==========================================
 function renderizarTabla(reservas) {
   const tbody = document.querySelector("table tbody");
-  const contadorTexto = document.querySelector(".card-header span, .solicitudes-count") 
+  const contadorTexto = document.getElementById("results-count") 
+                     || document.querySelector(".card-header span, .solicitudes-count") 
                      || document.querySelector("section p, h2 + p");
 
-  // Actualizar contador ("X resultados")
-  document.querySelectorAll("p, span").forEach(el => {
-    if (el.textContent.includes("resultados")) {
-      el.textContent = `${reservas.length} resultados`;
-    }
-  });
+  if (contadorTexto) {
+    contadorTexto.textContent = `${reservas.length} solicitudes encontradas`;
+  }
 
   if (!tbody) return;
   tbody.innerHTML = "";
@@ -93,7 +73,7 @@ function renderizarTabla(reservas) {
   if (reservas.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="7" style="text-align: center; padding: 2rem; color: #666;">
+        <td colspan="7" class="col-datos">
           No se encontraron reservas con los filtros seleccionados.
         </td>
       </tr>
@@ -101,11 +81,10 @@ function renderizarTabla(reservas) {
     return;
   }
 
-  reservas.forEach(r => {
+  reservas.forEach((r, index) => {
     const estado = (r.status || r.Estado || "Pendiente").trim();
     const estadoLower = estado.toLowerCase();
 
-    // Determinar la clase CSS según el estado
     let claseColor = "status-pendiente";
     if (estadoLower.includes("aprobada") || estadoLower.includes("confirmada")) {
       claseColor = "status-aprobada";
@@ -114,24 +93,29 @@ function renderizarTabla(reservas) {
     }
 
     const tr = document.createElement("tr");
-    tr.style.borderBottom = "1px solid #f0f0f0";
+    tr.className = "fila-reserva";
+
+    const codigo = r.code || r.Codigo;
+    const cliente = r.client || r.Cliente;
 
     tr.innerHTML = `
-      <td style="padding: 1rem 0.75rem; font-family: monospace; font-size: 0.85rem; color: #555;">${r.code || r.Codigo}</td>
-      <td style="padding: 1rem 0.75rem; font-weight: 500;">${r.client || r.Cliente}</td>
-      <td style="padding: 1rem 0.75rem;">${r.date || r.Fecha}</td>
-      <td style="padding: 1rem 0.75rem;">${r.time || r.Hora}</td>
-      <td style="padding: 1rem 0.75rem;">${r.table || r.Lugar}</td>
-      <td style="padding: 1rem 0.75rem;">
+      <td class="col-codigo">${codigo}</td>
+      <td class="col-datos">
+        <span class="cliente-link" onclick="abrirModalCliente(${index})" title="Ver información del cliente">
+          ${cliente} ℹ️
+        </span>
+      </td>
+      <td class="col-datos">${r.date || r.Fecha}</td>
+      <td class="col-datos">${r.time || r.Hora}</td>
+      <td class="col-datos">${r.table || r.Lugar}</td>
+      <td class="col-datos">
         <span class="badge-status ${claseColor}">${estado}</span>
       </td>
-      <td style="padding: 1rem 0.75rem; white-space: nowrap;">
-        <button type="button" onclick="cambiarEstado('${r.code || r.Codigo}', '${estadoLower.includes("aprobada") ? "rechazada" : "aprobada"}')" 
-                style="background: none; border: none; color: #2e7d32; cursor: pointer; font-size: 0.85rem; margin-right: 0.5rem; text-decoration: underline;">
+      <td class="col-acciones">
+        <button type="button" class="btn-accion-estado" onclick="cambiarEstado('${codigo}', '${estadoLower.includes("aprobada") ? "rechazada" : "aprobada"}')">
           ${estadoLower.includes("aprobada") ? "Rechazar" : "Aprobar"}
         </button>
-        <button type="button" onclick="eliminarReserva('${r.code || r.Codigo}')" title="Eliminar" 
-                style="background: none; border: none; cursor: pointer; color: #c62828;">
+        <button type="button" class="btn-accion-eliminar" onclick="eliminarReserva('${codigo}')" title="Eliminar">
           🗑️
         </button>
       </td>
@@ -141,11 +125,40 @@ function renderizarTabla(reservas) {
   });
 }
 
-// ==========================================
-// LÓGICA DE FILTRADO (ESTADO Y FECHA)
-// ==========================================
+window.abrirModalCliente = function(index) {
+  const r = listaReservas[index];
+  if (!r) return;
+
+  const modal = document.getElementById("modal-cliente");
+  if (!modal) return;
+
+  document.getElementById("modal-nombre").textContent = r.client || r.Cliente || "No especificado";
+  document.getElementById("modal-rut").textContent = r.rut || "No registrado";
+  document.getElementById("modal-telefono").textContent = r.phone || r.contacto || "Sin contacto";
+  document.getElementById("modal-mesa").textContent = r.table || r.Lugar || "-";
+  
+  const platoTexto = (r.notes || r.Platos || "").replace("Platos: ", "").replace("Plato: ", "") || "Sin plato";
+  document.getElementById("modal-plato").textContent = platoTexto;
+  
+  document.getElementById("modal-pago").textContent = r.payment_status || r.estado_pago || "Pago no registrado";
+  document.getElementById("modal-total").textContent = r.total || "$0";
+
+  modal.style.display = "flex";
+};
+
+window.cerrarModalCliente = function() {
+  const modal = document.getElementById("modal-cliente");
+  if (modal) modal.style.display = "none";
+};
+
+window.onclick = function(event) {
+  const modal = document.getElementById("modal-cliente");
+  if (event.target === modal) {
+    modal.style.display = "none";
+  }
+};
+
 function configurarFiltros() {
-  // Buscar inputs de fecha y selector de estado
   const inputFecha = document.querySelector("input[type='date']");
   const selectEstado = document.querySelector("select");
 
@@ -163,11 +176,10 @@ function aplicarFiltros() {
   const inputFecha = document.querySelector("input[type='date']");
   const selectEstado = document.querySelector("select");
 
-  const fechaFiltro = inputFecha ? inputFecha.value : ""; // Viene en "YYYY-MM-DD"
+  const fechaFiltro = inputFecha ? inputFecha.value : "";
   const estadoFiltro = selectEstado ? selectEstado.value.toLowerCase().trim() : "todos";
 
   const filtradas = listaReservas.filter(r => {
-    // 1. Filtrar por Estado
     const estadoReserva = (r.status || r.Estado || "").toLowerCase();
     let coincideEstado = true;
 
@@ -175,7 +187,6 @@ function aplicarFiltros() {
       coincideEstado = estadoReserva.includes(estadoFiltro);
     }
 
-    // 2. Filtrar por Fecha
     let coincideFecha = true;
     if (fechaFiltro) {
       const fechaReserva = (r.date || r.Fecha || "").trim();
@@ -188,22 +199,16 @@ function aplicarFiltros() {
   renderizarTabla(filtradas);
 }
 
-// Convierte fechas tanto ISO (2026-10-01) como texto ("1 oct 2026") para compararlas
 function normalizarYCompararFechas(fechaInput, fechaReserva) {
-  // Si coinciden directamente como string
   if (fechaInput === fechaReserva) return true;
-
-  // Si fechaReserva viene como "YYYY-MM-DD"
   if (fechaReserva.startsWith(fechaInput)) return true;
 
-  // Meses en español
   const meses = {
     "ene": "01", "feb": "02", "mar": "03", "abr": "04",
     "may": "05", "jun": "06", "jul": "07", "ago": "08",
     "sep": "09", "oct": "10", "nov": "11", "dic": "12"
   };
 
-  // Desglosar "1 oct 2026"
   const partes = fechaReserva.toLowerCase().split(" ");
   if (partes.length >= 3) {
     const dia = partes[0].padStart(2, "0");
@@ -216,9 +221,6 @@ function normalizarYCompararFechas(fechaInput, fechaReserva) {
   return false;
 }
 
-// ==========================================
-// ACCIONES: CAMBIAR ESTADO Y ELIMINAR
-// ==========================================
 window.cambiarEstado = async function(idReserva, nuevoEstado) {
   try {
     const res = await fetch(`${API_URL}/Reservas/Estado/${idReserva}`, {
@@ -260,20 +262,24 @@ window.eliminarReserva = async function(idReserva) {
 };
 
 function actualizarMetricas(reservas) {
+  const hoyStr = new Date().toISOString().split("T")[0];
   let aprobadas = 0;
   let pendientes = 0;
+  let reservasHoy = 0;
 
   reservas.forEach(r => {
     const st = (r.status || r.Estado || "").toLowerCase();
+    const fecha = r.date || r.Fecha || "";
+    if (fecha.startsWith(hoyStr)) reservasHoy++;
     if (st.includes("aprobada")) aprobadas++;
     if (st.includes("pendiente")) pendientes++;
   });
 
-  const elPendientes = document.querySelector(".card:nth-child(2) h3, .card:nth-child(2) div");
-  document.querySelectorAll("div, p").forEach(el => {
-    if (el.textContent.trim() === "Requieren revisión") {
-      const h = el.previousElementSibling;
-      if (h) h.textContent = pendientes;
-    }
-  });
+  const statToday = document.getElementById("stat-today");
+  const statApproved = document.getElementById("stat-approved");
+  const statPending = document.getElementById("stat-pending");
+
+  if (statToday) statToday.textContent = reservasHoy;
+  if (statApproved) statApproved.textContent = `${aprobadas} aprobadas`;
+  if (statPending) statPending.textContent = pendientes;
 }

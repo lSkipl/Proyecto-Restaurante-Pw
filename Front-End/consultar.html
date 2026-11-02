@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Consulta tu reserva — Álamos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="Styles/consultar.css" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="index.html" class="brand">
+        <div class="brand-badge">A</div>
+        <div class="brand-info">
+          <span class="brand-title">Álamos</span>
+          <span class="brand-subtitle">COCINA DE ESTACIÓN</span>
+        </div>
+      </a>
+
+      <nav class="main-nav">
+        <ul>
+          <li><a href="index.html">Inicio</a></li>
+          <li><a href="index.html#menu">Menú</a></li>
+          <li><a href="reservar.html">Reservar</a></li>
+          <li><a href="consultar.html" class="active">Consultar reserva</a></li>
+        </ul>
+      </nav>
+
+      <a href="login.html" class="btn-personal">
+        Acceso del personal
+        <i data-lucide="user" class="icon-sm"></i>
+      </a>
+    </div>
+  </header>
+
+  <!-- CONTENIDO PRINCIPAL -->
+  <main class="container main-content">
+    
+    <!-- TÍTULOS -->
+    <div class="hero-section">
+      <span class="eyebrow">SEGUIMIENTO</span>
+      <h1 class="page-title">Consulta tu reserva.</h1>
+      <p class="page-subtitle">Ingresa el código que recibiste y el identificador utilizado al solicitarla.</p>
+    </div>
+
+    <!-- TARJETA DEL FORMULARIO DE CONSULTA -->
+    <section class="card query-card">
+      <form id="form-consultar" class="query-form">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="codigo">Código de reserva (opcional)</label>
+            <input type="text" id="codigo" placeholder="Ej. 6ae7c5e3c9ca..." />
+          </div>
+          <div class="form-group">
+            <label for="identificador">Identificador del cliente</label>
+            <input type="text" id="identificador" placeholder="12.345.678-9" required />
+          </div>
+        </div>
+
+        <button type="submit" id="btn-consultar" class="btn-submit">
+          Consultar reserva
+          <i data-lucide="search" class="icon-sm"></i>
+        </button>
+
+        <p class="query-helper">Para probar el resultado usa el código entregado al reservar o consulta solo con tu RUT.</p>
+      </form>
+    </section>
+
+    <!-- CONTENEDOR DE TARJETAS DINÁMICAS (Aquí se pintan todas las reservas) -->
+    <div id="contenedor-resultados" style="display: flex; flex-direction: column; gap: 2rem;"></div>
+
+  </main>
+
+  <script src="consultar.js"></script>
+</body>
+</html>

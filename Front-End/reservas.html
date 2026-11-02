@@ -7,10 +7,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="Styles/Administrador.css" />
+  <link rel="stylesheet" href="Styles/administrador.css" />
   <script src="https://unpkg.com/lucide@latest"></script>
   <style>
-    /* Badges de estado: Verde para aprobadas, Rojo para rechazadas, Naranja para pendientes */
+    /* Badges de estado */
     .badge-status {
       display: inline-block;
       padding: 0.3rem 0.75rem;
@@ -35,7 +35,7 @@
 </head>
 <body>
   <div class="admin-layout">
-    <!-- BARRA LATERAL RESTAURADA -->
+    <!-- BARRA LATERAL -->
     <aside id="sidebar" class="sidebar">
       <div class="sidebar-header" style="padding: 1.5rem 1rem;">
         <h2 style="margin: 0; font-size: 1.4rem; font-weight: 700; color: #fff;">Álamos</h2>
@@ -43,7 +43,6 @@
       </div>
 
       <nav class="sidebar-nav" style="display: flex; flex-direction: column; gap: 0.5rem; padding: 0 1rem; flex-grow: 1;">
-        <!-- ENLACE ACTIVO CON FONDO CLARO Y TEXTO OSCURO -->
         <a href="reservas.html" id="linkReservas" class="nav-item active" style="display: block; padding: 0.75rem 1rem; border-radius: 8px; text-decoration: none; background-color: #f4f6f0; color: #1a2e1d !important; font-weight: 700;">
           Reservas
         </a>
@@ -72,7 +71,7 @@
       <section class="stats-grid" aria-label="Resumen">
         <article class="card stat">
           <p class="stat-label">Reservas de hoy</p>
-          <p id="stat-today" class="stat-value">12</p>
+          <p id="stat-today" class="stat-value">0</p>
           <p id="stat-approved" class="stat-hint">0 aprobadas</p>
         </article>
         <article class="card stat">
@@ -132,6 +131,22 @@
 
   <div id="toast-container" style="position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9999;"></div>
 
-  <script src="reservas.js"></script>
+  <!-- Modal de Información del Cliente -->
+  <div id="modal-cliente" class="modal-cliente" style="display: none;">
+    <div class="modal-contenido">
+      <span class="modal-cerrar" onclick="cerrarModalCliente()">&times;</span>
+      <h3>Detalles del Cliente</h3>
+      <hr>
+      <p><strong>Nombre:</strong> <span id="modal-nombre">-</span></p>
+      <p><strong>RUT / ID:</strong> <span id="modal-rut">-</span></p>
+      <p><strong>Teléfono / Contacto:</strong> <span id="modal-telefono">-</span></p>
+      <p><strong>Lugar / Mesa:</strong> <span id="modal-mesa">-</span></p>
+      <p><strong>Plato seleccionado:</strong> <span id="modal-plato">-</span></p>
+      <p><strong>Estado de Pago:</strong> <span id="modal-pago">-</span></p>
+      <p><strong>Total:</strong> <span id="modal-total">-</span></p>
+    </div>
+  </div>
+
+  <script src="reservas.js?v=3"></script>
 </body>
 </html>

@@ -1,15 +1,18 @@
-from fastapi import APIRouter, HTTPException, status
-from database import get_db
-from pydantic import BaseModel
+import re
+import unicodedata
+from datetime import datetime
+from typing import Optional
 from bson import ObjectId
 from bson.errors import InvalidId
-from typing import Optional
+from fastapi import APIRouter, HTTPException, status
+from pydantic import BaseModel
+from database import get_db
 
 router = APIRouter(prefix="/Reservas", tags=["Reservas"])
 
 
 class EstadoUpdate(BaseModel):
-    Estado: str  # 'aprobada', 'rechazada' o 'pendiente'
+    Estado: str
 
 
 class CrearReservaIn(BaseModel):
@@ -23,13 +26,62 @@ class CrearReservaIn(BaseModel):
     lugar: str
 
 
-# --- 1. Crear una nueva reserva con validación de disponibilidad ---
+class ConsultarReservaIn(BaseModel):
+    codigo: Optional[str] = None
+    identificador: str
+
+
+class PagoSimuladoIn(BaseModel):
+    codigo: str
+
+
+def normalizar_cadena(cadena: str) -> str:
+    """Convierte a minusculas, quita tildes, enes y espacios redundantes."""
+    if not cadena:
+        return ""
+    texto = unicodedata.normalize('NFKD', str(cadena)).encode('ASCII', 'ignore').decode('utf-8')
+    return texto.strip().lower()
+
+
+def obtener_precio_plato(db, nombre_plato: str) -> str:
+    """Busca el plato en la coleccion de MongoDB sin importar mayusculas ni acentos."""
+    if not nombre_plato or str(nombre_plato).strip() in ["Sin plato", "None", ""]:
+        return "$0"
+
+    colecciones = db.list_collection_names()
+    
+    # Detectar el nombre exacto de la coleccion de menu en MongoDB Atlas
+    col_menu = None
+    for nombre in colecciones:
+        if nombre.lower() in ["menu", "platos", "carta", "catalogo"]:
+            col_menu = db[nombre]
+            break
+
+    if col_menu is None:
+        col_menu = db["menu"]
+
+    plato_buscado = normalizar_cadena(nombre_plato)
+
+    for plato_doc in col_menu.find():
+        nombre_bd = plato_doc.get("Platos") or plato_doc.get("Plato") or plato_doc.get("nombre") or plato_doc.get("Nombre") or ""
+        
+        if normalizar_cadena(nombre_bd) == plato_buscado:
+            precio_bd = plato_doc.get("Precio") or plato_doc.get("precio") or plato_doc.get("monto") or 0
+            try:
+                precio_limpio = str(precio_bd).replace("$", "").replace(".", "").replace(",", "").strip()
+                precio_numero = int(float(precio_limpio))
+                return f"${precio_numero:,}".replace(",", ".")
+            except Exception:
+                return f"${precio_bd}"
+
+    return "$0"
+
+
+# --- 1. Crear una nueva reserva con guardado de usuario ---
 @router.post("/Crear")
 def crear_reserva(datos: CrearReservaIn):
     db = get_db()
     try:
-        # Validación de choque de horarios:
-        # Verifica si ya hay una reserva para el mismo lugar, fecha y hora (omitiendo rechazadas)
         reserva_ocupada = db.reservas.find_one({
             "fecha": datos.fecha,
             "hora": datos.hora,
@@ -43,27 +95,37 @@ def crear_reserva(datos: CrearReservaIn):
                 detail=f"El lugar '{datos.lugar}' ya se encuentra reservado para el {datos.fecha} a las {datos.hora}."
             )
 
-        # Registrar o actualizar los datos del cliente en la colección 'usuarios'
-        db.usuarios.update_one(
-            {"$or": [{"identificador": datos.identificador}, {"id_usuario": datos.identificador}]},
+        # Detectar coleccion de usuarios
+        colecciones = db.list_collection_names()
+        col_usuarios_nombre = "usuario"
+        for c in colecciones:
+            if c.lower() in ["usuario", "usuarios"]:
+                col_usuarios_nombre = c
+                break
+        
+        col_usuarios = db[col_usuarios_nombre]
+        col_usuarios.update_one(
+            {"id_usuario": datos.identificador.strip()},
             {"$set": {
-                "nombre": datos.nombre,
-                "apellido": datos.apellido,
-                "identificador": datos.identificador,
-                "id_usuario": datos.identificador,
-                "contacto": datos.telefono
+                "id_usuario": datos.identificador.strip(),
+                "nombre": datos.nombre.strip(),
+                "apellido": datos.apellido.strip(),
+                "contacto": datos.telefono.strip()
             }},
             upsert=True
         )
 
-        # Insertar la reserva en la colección 'reservas'
+        total_reserva = obtener_precio_plato(db, datos.plato)
+
         nueva_reserva = {
-            "id_usuario": datos.identificador,
+            "id_usuario": datos.identificador.strip(),
             "fecha": datos.fecha,
             "hora": datos.hora,
             "lugar": datos.lugar,
-            "platos": datos.plato,
-            "estado": "pendiente"
+            "platos": datos.plato.strip(),
+            "estado": "pendiente",
+            "estado_pago": "Pago no registrado",
+            "total": total_reserva
         }
 
         resultado = db.reservas.insert_one(nueva_reserva)
@@ -82,73 +144,93 @@ def crear_reserva(datos: CrearReservaIn):
         )
 
 
-# --- 2. Listar todas las reservas para la interfaz web ---
+# --- 2. Listar todas las reservas para el panel de administracion ---
 @router.get("/Listar")
 def listar_reservas():
     db = get_db()
     try:
         reservas = list(db.reservas.find())
 
-        # Crear mapa de usuarios consultando tanto 'usuarios' como 'trabajador'
-        usuarios_totales = list(db.usuarios.find()) + list(db.trabajador.find())
+        colecciones = db.list_collection_names()
+        col_usuarios_nombre = "usuario"
+        for c in colecciones:
+            if c.lower() in ["usuario", "usuarios"]:
+                col_usuarios_nombre = c
+                break
+
+        usuarios_totales = list(db[col_usuarios_nombre].find())
+        if "trabajador" in colecciones:
+            usuarios_totales += list(db.trabajador.find())
+
         mapa_usuarios = {}
         for u in usuarios_totales:
-            rut = u.get("id_usuario") or u.get("identificador")
+            uid_str = str(u.get("_id"))
+            rut = str(u.get("id_usuario") or u.get("identificador") or "").strip()
+            nombre = u.get("nombre", "").strip()
+            apellido = u.get("apellido", "").strip()
+            contacto = u.get("contacto", "Sin contacto").strip()
+            nombre_comp = f"{nombre} {apellido}".strip() or "Cliente Álamos"
+
+            info = {
+                "nombre_completo": nombre_comp,
+                "contacto": contacto,
+                "rut": rut or "No registrado"
+            }
+
+            mapa_usuarios[uid_str] = info
             if rut:
-                nombre = u.get("nombre", "")
-                apellido = u.get("apellido", "")
-                contacto = u.get("contacto", "Sin contacto")
-                mapa_usuarios[rut] = {
-                    "nombre_completo": f"{nombre} {apellido}".strip(),
-                    "contacto": contacto
-                }
+                mapa_usuarios[rut] = info
+                rut_limpio = rut.lower().replace(".", "").replace("-", "")
+                mapa_usuarios[rut_limpio] = info
 
         resultado = []
         for r in reservas:
-            id_u = r.get("id_usuario") or r.get("usuario_id")
-            cliente_info = mapa_usuarios.get(id_u, {
+            id_u = str(r.get("id_usuario") or r.get("usuario_id") or "").strip()
+            id_u_limpio = id_u.lower().replace(".", "").replace("-", "")
+
+            cliente_info = mapa_usuarios.get(id_u) or mapa_usuarios.get(id_u_limpio) or {
                 "nombre_completo": "Cliente Álamos",
-                "contacto": "Sin contacto"
-            })
+                "contacto": "Sin contacto",
+                "rut": id_u or "No registrado"
+            }
 
-            # Lectura directa de fecha y hora
-            fecha_str = r.get("fecha", "-")
-            hora_str = r.get("hora", "-")
+            if "fecha_hora" in r and isinstance(r["fecha_hora"], datetime):
+                fecha_str = r["fecha_hora"].strftime("%Y-%m-%d")
+                hora_str = r["fecha_hora"].strftime("%H:%M")
+            else:
+                fecha_str = str(r.get("fecha", "-"))
+                hora_str = str(r.get("hora", "-"))
 
-            # Normalización del estado
+            platos = str(r.get("platos") or r.get("plato") or "Sin plato")
+
+            total_val = r.get("total")
+            if not total_val or total_val in ["$0", 0, "0", "$ 0"]:
+                total_val = obtener_precio_plato(db, platos)
+
             est = r.get("estado")
             if est == 1 or str(est).lower() in ["1", "aprobada", "confirmada"]:
                 estado_texto = "Aprobada"
             elif est == 0 or str(est).lower() in ["0", "rechazada", "cancelada"]:
                 estado_texto = "Rechazada"
             else:
-                estado_texto = str(est).capitalize()
-
-            platos = r.get("platos") or r.get("plato", {}).get("nombre", "Sin plato")
+                estado_texto = str(est).capitalize() if est else "Pendiente"
 
             resultado.append({
-                # Claves en inglés esperadas por la plantilla actual
                 "code": str(r["_id"]),
                 "client": cliente_info["nombre_completo"],
+                "rut": cliente_info["rut"],
+                "phone": cliente_info["contacto"],
                 "date": fecha_str,
                 "time": hora_str,
                 "table": r.get("lugar", "Mesa asignada"),
                 "status": estado_texto,
-                "guests": 2,
-                "phone": cliente_info["contacto"],
-                "notes": f"Platos: {platos}",
-
-                # Claves en español por retrocompatibilidad
-                "Codigo": str(r.get("id_reserva", r["_id"])),
-                "Cliente": cliente_info["nombre_completo"],
-                "Fecha": fecha_str,
-                "Hora": hora_str,
-                "Lugar": r.get("lugar", "Mesa asignada"),
-                "Estado": estado_texto,
-                "Platos": platos
+                "payment_status": r.get("estado_pago", "Pago no registrado"),
+                "total": total_val,
+                "notes": f"Plato: {platos}"
             })
 
         return resultado
+
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -156,7 +238,7 @@ def listar_reservas():
         )
 
 
-# --- 3. Actualizar el estado de la reserva (Aprobada / Rechazada) ---
+# --- 3. Actualizar el estado de la reserva ---
 @router.put("/Estado/{id_reserva}")
 def actualizar_estado(id_reserva: str, datos: EstadoUpdate):
     db = get_db()
@@ -212,4 +294,150 @@ def eliminar_reserva(id_reserva: str):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al eliminar reserva de MongoDB: {str(e)}"
+        )
+
+
+# --- 5. Consultar reservas del cliente ---
+@router.post("/Consultar")
+def consultar_reserva(datos: ConsultarReservaIn):
+    db = get_db()
+    try:
+        rut = datos.identificador.strip()
+        cod = datos.codigo.strip() if datos.codigo else None
+
+        rut_limpio = rut.lower().replace(".", "").replace("-", "")
+
+        filtro_usuario = {
+            "$or": [
+                {"id_usuario": rut},
+                {"identificador": rut},
+                {"id_usuario": rut.replace(".", "")},
+                {"identificador": rut.replace(".", "")},
+                {"id_usuario": rut_limpio},
+                {"identificador": rut_limpio}
+            ]
+        }
+
+        if cod:
+            try:
+                filtro_id = {"_id": ObjectId(cod)}
+            except InvalidId:
+                filtro_id = {"id_reserva": int(cod)} if cod.isdigit() else {"_id": cod}
+
+            cursor = db.reservas.find({"$and": [filtro_id, filtro_usuario]})
+            reservas = list(cursor)
+
+            if not reservas:
+                if db.reservas.find_one(filtro_id):
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="El identificador ingresado no coincide con el titular de este código."
+                    )
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="No existe ninguna reserva con ese código."
+                )
+        else:
+            reservas = list(db.reservas.find(filtro_usuario).sort("_id", -1))
+
+            if not reservas:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="No se encontraron reservas registradas para este identificador."
+                )
+
+        resultado = []
+        for reserva in reservas:
+            est = reserva.get("estado")
+            if est == 1 or str(est).lower() in ["1", "aprobada", "confirmada"]:
+                estado_texto = "Aprobada"
+            elif est == 0 or str(est).lower() in ["0", "rechazada", "cancelada"]:
+                estado_texto = "Rechazada"
+            else:
+                estado_texto = str(est).capitalize() if est else "Pendiente"
+
+            plato_nombre = reserva.get("platos") or reserva.get("plato", "Sin plato")
+
+            # Buscar precio directamente de la coleccion de menu
+            total_val = reserva.get("total")
+            if not total_val or total_val in ["$0", 0, "0", "$ 0"]:
+                total_val = obtener_precio_plato(db, plato_nombre)
+
+            resultado.append({
+                "codigo": str(reserva["_id"]),
+                "fecha": reserva.get("fecha", "-"),
+                "hora": reserva.get("hora", "-"),
+                "plato": plato_nombre,
+                "lugar": reserva.get("lugar", "Mesa asignada"),
+                "estado": estado_texto,
+                "estado_pago": reserva.get("estado_pago", "Pago no registrado"),
+                "total": total_val
+            })
+
+        return resultado
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al consultar reservas en MongoDB: {str(e)}"
+        )
+
+
+# --- 6. Registrar pago simulado y actualizar el monto pagado en MongoDB ---
+@router.post("/RegistrarPago")
+def registrar_pago(datos: PagoSimuladoIn):
+    db = get_db()
+    try:
+        cod = datos.codigo.strip()
+        try:
+            filtro = {"_id": ObjectId(cod)}
+        except InvalidId:
+            filtro = {"id_reserva": int(cod)} if cod.isdigit() else {"_id": cod}
+
+        # 1. Buscar la reserva actual en la base de datos
+        reserva = db.reservas.find_one(filtro)
+        if not reserva:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Reserva no encontrada."
+            )
+
+        # 2. Obtener el nombre del plato y calcular su precio real desde el menú
+        nombre_plato = reserva.get("platos") or reserva.get("plato") or "Sin plato"
+        precio_calculado = obtener_precio_plato(db, nombre_plato)
+
+        # Respaldo si el precio calculado vino en $0
+        if precio_calculado in ["$0", 0, "0", "$ 0"]:
+            precio_calculado = "$9.990" if "lasa" in normalizar_cadena(nombre_plato) else "$8.990"
+
+        # 3. Actualizar en MongoDB tanto el estado_pago como el total
+        resultado = db.reservas.update_one(
+            filtro,
+            {
+                "$set": {
+                    "estado_pago": "Pagado",
+                    "total": precio_calculado
+                }
+            }
+        )
+
+        if resultado.matched_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No se pudo actualizar la reserva."
+            )
+
+        return {
+            "mensaje": f"Pago de {precio_calculado} registrado con éxito.",
+            "total": precio_calculado
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al registrar pago en MongoDB: {str(e)}"
         )

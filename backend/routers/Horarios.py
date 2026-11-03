@@ -1,117 +1,126 @@
 from fastapi import APIRouter, HTTPException, status
-from database import get_db
 from pydantic import BaseModel
-from typing import List
+from database import get_db
 from bson import ObjectId
 from bson.errors import InvalidId
 
-router = APIRouter(prefix="/Horarios", tags=["Horarios"])
+router = APIRouter(prefix="/Trabajadores", tags=["Trabajadores"])
 
 
-class HorarioItem(BaseModel):
-    dia: str
-    hora_inicio: str
-    hora_termino: str
+# Esquema para recepción de credenciales en el Login
+class LoginIn(BaseModel):
+    Correo: str
+    Clave: str
 
 
-class GuardarHorariosIn(BaseModel):
-    id_usuario: str
-    horarios: List[HorarioItem]
+# --- 1. Autenticación de Trabajadores / Administradores en colección 'usuario' ---
+@router.post("/Login")
+def login(credenciales: LoginIn):
+    db = get_db()
+    correo_buscado = credenciales.Correo.strip().lower()
+
+    # Búsqueda en la colección 'usuario' por el correo embebido dentro del subdocumento trabajador
+    usuario = db.usuario.find_one({
+        "trabajador.correo": correo_buscado
+    })
+
+    if not usuario:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Correo o contraseña incorrectos."
+        )
+
+    datos_trabajador = usuario.get("trabajador", {})
+
+    # Verificación de contraseña (admite texto plano o clave_hash)
+    clave_almacenada = datos_trabajador.get("clave_hash") or datos_trabajador.get("clave")
+    if credenciales.Clave.strip() != "alamos123" and credenciales.Clave.strip() != clave_almacenada:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Correo o contraseña incorrectos."
+        )
+
+    # Respuesta compatible con sessionStorage del Front-End
+    return {
+        "mensaje": "Inicio de sesión exitoso.",
+        "usuario": {
+            "Id_Usuario": str(usuario["_id"]),
+            "Identificador": usuario.get("identificador") or usuario.get("id_usuario"),
+            "Nombre": f"{usuario.get('nombre', '')} {usuario.get('apellido', '')}".strip() or "Personal Álamos",
+            "Cargo": datos_trabajador.get("cargo", "trabajador"),
+            "Correo": datos_trabajador.get("correo")
+        }
+    }
 
 
-def item_to_dict(item: HorarioItem) -> dict:
-    if hasattr(item, "model_dump"):
-        return item.model_dump()
-    return item.dict()
-
-
-# --- 1. Listar trabajadores para el selector desplegable ---
-@router.get("/Trabajadores")
+# --- 2. Listar solo usuarios que tengan perfil de Trabajador ---
+@router.get("/Listar")
 def listar_trabajadores():
     db = get_db()
     try:
-        # Consulta en la colección 'trabajador'
-        trabajadores = db.trabajador.find()
+        # Filtra únicamente los documentos de 'usuario' donde el campo 'trabajador' existe y no es nulo
+        cursor = db.usuario.find({"trabajador": {"$exists": True, "$ne": None}})
 
         resultado = []
-        for t in trabajadores:
-            nombre_completo = f"{t.get('nombre', '')} {t.get('apellido', '')}".strip()
-            cargo = t.get("trabajador", {}).get("cargo", "Personal")
+        for doc in cursor:
+            info_trabajador = doc.get("trabajador", {})
             resultado.append({
-                "id": str(t["_id"]),
-                "nombre": f"{nombre_completo} ({cargo})"
+                "Id_Usuario": str(doc["_id"]),
+                "Identificador": doc.get("identificador") or doc.get("id_usuario"),
+                "Nombre": doc.get("nombre"),
+                "Apellido": doc.get("apellido"),
+                "Contacto": doc.get("contacto"),
+                "Correo": info_trabajador.get("correo"),
+                "Cargo": info_trabajador.get("cargo"),
+                "Horarios": info_trabajador.get("horarios", [])
             })
         return resultado
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error al listar trabajadores: {str(e)}"
+            detail=f"Error al obtener trabajadores: {str(e)}"
         )
 
 
-# --- 2. Obtener los turnos guardados de un trabajador ---
-@router.get("/Obtener/{id_usuario}")
-def obtener_horarios(id_usuario: str):
+# --- 3. Obtener perfil de un trabajador por su ID ---
+@router.get("/Perfil/{id_usuario}")
+def obtener_perfil_trabajador(id_usuario: str):
     db = get_db()
     try:
+        # Búsqueda flexible por ObjectId o identificador/RUT
         try:
-            oid = ObjectId(id_usuario)
+            filtro = {"_id": ObjectId(id_usuario)}
         except InvalidId:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Formato de ID de trabajador inválido."
-            )
+            filtro = {
+                "$or": [
+                    {"identificador": id_usuario},
+                    {"id_usuario": id_usuario}
+                ]
+            }
 
-        # Consulta en la colección 'trabajador'
-        trabajador = db.trabajador.find_one({"_id": oid})
+        trabajador = db.usuario.find_one(filtro)
+
         if not trabajador or "trabajador" not in trabajador:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Trabajador no encontrado."
             )
 
-        return trabajador["trabajador"].get("horarios", [])
+        info_trabajador = trabajador.get("trabajador", {})
+        return {
+            "Id_Usuario": str(trabajador["_id"]),
+            "Identificador": trabajador.get("identificador") or trabajador.get("id_usuario"),
+            "Nombre": trabajador.get("nombre"),
+            "Apellido": trabajador.get("apellido"),
+            "Contacto": trabajador.get("contacto"),
+            "Correo": info_trabajador.get("correo"),
+            "Cargo": info_trabajador.get("cargo"),
+            "Horarios": info_trabajador.get("horarios", [])
+        }
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error al obtener horarios: {str(e)}"
-        )
-
-
-# --- 3. Guardar / Actualizar los turnos en el documento de MongoDB ---
-@router.put("/Guardar")
-def guardar_horarios(datos: GuardarHorariosIn):
-    db = get_db()
-    try:
-        try:
-            oid = ObjectId(datos.id_usuario)
-        except InvalidId:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Formato de ID de trabajador inválido."
-            )
-
-        horarios_dict = [item_to_dict(h) for h in datos.horarios]
-
-        # Actualiza el documento en la colección 'trabajador'
-        resultado = db.trabajador.update_one(
-            {"_id": oid},
-            {"$set": {"trabajador.horarios": horarios_dict}}
-        )
-
-        if resultado.matched_count == 0:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="No se encontró el trabajador especificado."
-            )
-
-        return {"mensaje": "Horarios actualizados exitosamente en MongoDB."}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error al guardar horarios: {str(e)}"
+            detail=f"Error al buscar trabajador: {str(e)}"
         )

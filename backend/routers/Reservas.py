@@ -6,9 +6,54 @@ from bson import ObjectId
 from bson.errors import InvalidId
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
+from pymongo.errors import DuplicateKeyError
 from database import get_db
 
 router = APIRouter(prefix="/Reservas", tags=["Reservas"])
+
+
+# --- Inicialización de Índices de Integridad NoSQL ---
+def inicializar_indices():
+  
+    try:
+        db = get_db()
+        # 1. Índice compuesto único para evitar sobreventas en la misma mesa/horario
+        db.reservas.create_index(
+            [("fecha", 1), ("hora", 1), ("lugar", 1)],
+            unique=True,
+            name="idx_reserva_fecha_hora_lugar_unique"
+        )
+        
+        # Índice compuesto alternativo si se usa el campo unificado fecha_hora
+        db.reservas.create_index(
+            [("fecha_hora", 1), ("lugar", 1)],
+            unique=True,
+            sparse=True,
+            name="idx_reserva_fecha_lugar_unique"
+        )
+
+        # 2. Índice único para código de reserva pública
+        db.reservas.create_index(
+            [("codigo", 1)],
+            unique=True,
+            sparse=True,
+            name="idx_reserva_codigo_unique"
+        )
+
+        # 3. Índice único para el correo de trabajadores (colección usuario)
+        db.usuario.create_index(
+            [("trabajador.correo", 1)],
+            unique=True,
+            sparse=True,
+            name="idx_trabajador_correo_unique"
+        )
+        print("✓ Índices de MongoDB Atlas inicializados con éxito.")
+    except Exception as e:
+        print(f"Aviso al inicializar índices de MongoDB: {e}")
+
+
+# Se ejecutan los índices al importar el router
+inicializar_indices()
 
 
 class EstadoUpdate(BaseModel):
@@ -86,6 +131,7 @@ def obtener_precio_plato(db, nombre_plato: str) -> str:
 def crear_reserva(datos: CrearReservaIn):
     db = get_db()
     try:
+        # Validación de disponibilidad previa en base de datos
         reserva_ocupada = db.reservas.find_one({
             "fecha": datos.fecha,
             "hora": datos.hora,
@@ -99,7 +145,7 @@ def crear_reserva(datos: CrearReservaIn):
                 detail=f"El lugar '{datos.lugar}' ya se encuentra reservado para el {datos.fecha} a las {datos.hora}."
             )
 
-        # Guarda o actualiza al cliente directamente en la coleccion 'usuario'
+        # Guarda o actualiza al cliente directamente en la colección 'usuario'
         db.usuario.update_one(
             {"id_usuario": datos.identificador.strip()},
             {"$set": {
@@ -125,6 +171,7 @@ def crear_reserva(datos: CrearReservaIn):
             "total": total_reserva
         }
 
+        # Inserción controlada con respaldo ante colisiones del índice único
         resultado = db.reservas.insert_one(nueva_reserva)
 
         return {
@@ -132,6 +179,12 @@ def crear_reserva(datos: CrearReservaIn):
             "codigo": str(resultado.inserted_id)
         }
 
+    except DuplicateKeyError:
+        # Captura directa si choca contra el índice compuesto único de MongoDB
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Conflicto de integridad: El lugar '{datos.lugar}' ya fue tomado en ese mismo horario."
+        )
     except HTTPException:
         raise
     except Exception as e:

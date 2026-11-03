@@ -20,7 +20,6 @@
   --font-sans: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
 
-/* ---------- Base ---------- */
 
 *,
 *::before,
@@ -83,8 +82,6 @@ img {
   outline-offset: 2px;
 }
 
-/* ---------- Tipografía común ---------- */
-
 .eyebrow {
   font-size: 11px;
   font-weight: 600;
@@ -100,8 +97,6 @@ img {
 .text-xs {
   font-size: 12px;
 }
-
-/* ---------- Formularios y Controles ---------- */
 
 .field {
   display: flex;
@@ -139,7 +134,6 @@ img {
   padding: 0 8px;
 }
 
-/* ---------- Layout Principal ---------- */
 
 .admin-layout {
   display: flex;
@@ -172,7 +166,6 @@ img {
   background: var(--background);
 }
 
-/* ---------- Barra Lateral (Sidebar) ---------- */
 
 .sidebar {
   position: sticky;
@@ -218,7 +211,6 @@ img {
   }
 }
 
-/* ---------- Estadísticas Superiores ---------- */
 
 .stats-grid {
   display: grid;
@@ -254,7 +246,7 @@ img {
   }
 }
 
-/* ---------- Tabla de Reservas ---------- */
+
 
 .table-card {
   margin-top: 16px;
@@ -373,7 +365,7 @@ img {
   color: #92400e;
 }
 
-/* ---------- Notificaciones (Toast) ---------- */
+
 
 .toast {
   position: fixed;
@@ -394,7 +386,7 @@ img {
   color: #ffffff;
 }
 
-/* ---------- Modal de Información del Cliente ---------- */
+
 
 .cliente-link {
   cursor: pointer;

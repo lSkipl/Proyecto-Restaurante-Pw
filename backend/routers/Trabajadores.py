@@ -9,9 +9,6 @@ from bson.errors import InvalidId
 router = APIRouter(tags=["Trabajadores"])
 
 
-# ==========================================
-# MODELOS PYDANTIC
-# ==========================================
 
 class LoginIn(BaseModel):
     Correo: str
@@ -29,9 +26,6 @@ class ActualizarHorariosIn(BaseModel):
     horarios: List[HorarioTurno]
 
 
-# ==========================================
-# UTILIDAD DE BASE DE DATOS
-# ==========================================
 
 def get_coleccion_usuarios(db):
     """Retorna la colección adecuada admitiendo 'usuarios' o 'usuario'."""
@@ -41,9 +35,6 @@ def get_coleccion_usuarios(db):
     return db.usuario
 
 
-# ==========================================
-# 1. AUTENTICACIÓN (LOGIN)
-# ==========================================
 
 @router.post("/Trabajadores/Login")
 def login(credenciales: LoginIn):
@@ -84,10 +75,6 @@ def login(credenciales: LoginIn):
     }
 
 
-# ==========================================
-# 2. LISTAR TRABAJADORES (DOBLE RUTA)
-# Responde tanto a /Trabajadores/Listar como a /Horarios/Trabajadores
-# ==========================================
 
 @router.get("/Trabajadores/Listar")
 @router.get("/Horarios/Trabajadores")
@@ -129,10 +116,6 @@ def listar_trabajadores():
             detail=f"Error al obtener trabajadores: {str(e)}"
         )
 
-
-# ==========================================
-# 3. OBTENER PERFIL Y HORARIOS
-# ==========================================
 
 # Para el frontend de Horarios (espera un Array directo de turnos)
 @router.get("/Horarios/Obtener/{id_usuario}")
@@ -196,11 +179,6 @@ def obtener_perfil_trabajador(id_usuario: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
-# ==========================================
-# 4. GUARDAR HORARIOS EN MONGODB
-# Responde a PUT /Trabajadores/Horarios/{id} y a PUT /Horarios/Guardar
-# ==========================================
 
 @router.put("/Trabajadores/Horarios/{id_usuario}")
 def actualizar_horarios_por_parametro(id_usuario: str, payload: ActualizarHorariosIn):

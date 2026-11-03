@@ -1,4 +1,4 @@
-/* ---------- Página de reserva (requiere styles.css) ---------- */
+
 .reserve {
   padding-block: 2.5rem 4rem;
 }
@@ -33,7 +33,6 @@
   box-shadow: 0 1px 3px rgb(0 0 0 / 0.04);
 }
 
-/* ---------- Formulario ---------- */
 .reserve-form {
   flex: 1;
   padding: 1.5rem;
@@ -165,7 +164,7 @@ button.btn {
   box-shadow: 0 8px 18px -6px rgb(31 61 51 / 0.5);
 }
 
-/* ---------- Resumen ---------- */
+
 .summary {
   padding: 1rem;
   align-self: flex-start;
@@ -252,7 +251,6 @@ button.btn {
   color: var(--muted);
 }
 
-/* ---------- Responsive ---------- */
 @media (min-width: 640px) {
   .reserve-title {
     font-size: 4rem;

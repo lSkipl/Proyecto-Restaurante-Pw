@@ -92,7 +92,7 @@ function crearTarjetaReserva(reserva) {
   const pagoClase = esPagado ? "pill-payment pagado" : "pill-payment";
   const textoBotonPago = esPagado ? "Pago completado" : "Registrar pago simulado";
 
-  // Si el total viene vacío o en $0, usa el valor de la carta como respaldo
+
   const precioFinal = (reserva.total && reserva.total !== "$0" && reserva.total !== "0")
     ? reserva.total
     : "$9.990";

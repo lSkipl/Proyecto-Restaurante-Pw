@@ -1,6 +1,6 @@
 const API_URL = "https://olive-stood-quizzical.ngrok-free.dev";
 
-//Imagenes de los platos
+
 const IMAGENES_PLATOS = {
   "Pizza Napolitana": "images/pizza_napolitana.jpg",
   "Pizza Familiar": "images/pizza_familiar.jpg",
@@ -13,7 +13,7 @@ const IMAGENES_PLATOS = {
   "Salmón a la plancha": "images/salmon_plancha.jpg"
 };
 
-// Almacena en memoria el menú obtenido desde MongoDB
+
 let catalogoPlatos = {};
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -85,7 +85,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const data = await respuesta.json();
 
-        // Validación de choque de mesa/horario (409 Conflict)
         if (respuesta.status === 409) {
           alert(`⚠️ No disponible:\n${data.detail}\nPor favor elige otra hora o lugar.`);
           return;
@@ -128,7 +127,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 });
 
-// Obtiene los datos del nuevo endpoint /Menu/ y puebla el select
+
 async function cargarMenuDesdeBD(selectElement) {
   if (!selectElement) return;
 
@@ -167,7 +166,7 @@ async function cargarMenuDesdeBD(selectElement) {
   }
 }
 
-// Actualiza título, descripción, precio e imagen en la tarjeta lateral
+
 function actualizarResumenPlato(nombrePlato) {
   const info = catalogoPlatos[nombrePlato];
   if (!info) return;
@@ -181,7 +180,7 @@ function actualizarResumenPlato(nombrePlato) {
   if (summaryDesc) summaryDesc.textContent = info.desc;
   if (summaryPrice) summaryPrice.textContent = info.precio;
 
-  // Actualizar imagen con fallback a plato.png si no existe mapeo exacto
+
   if (summaryImg) {
     const rutaImagen = IMAGENES_PLATOS[nombrePlato] || "images/plato.png";
     summaryImg.src = rutaImagen;

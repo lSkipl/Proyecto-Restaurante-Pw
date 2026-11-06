@@ -22,7 +22,7 @@ y eso seria lo inicial.
 
 4- en la pestaña donde ejecutas el ngrok veras algo asi "Forwarding    https://xxxxx.ngrok-free.app -> http://localhost:8000" basicamente ocupamos la direccion https://xxxxx.ngrok-free.app
 
-
+https://olive-stood-quizzical.ngrok-free.dev
 
 # Pruebas
 Administrador
